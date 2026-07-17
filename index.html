@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -5,12 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Administrativo - Orbiscorp</title>
     <style>
-        /* Variables de la Marca Orbiscorp */
         :root {
             --orbis-blue: #0a2540;
             --orbis-blue-hover: #113a64;
             --orbis-accent: #0066cc;
-            --bg-color: #f4f7f9;
+            --bg-color: #eef2f7;
             --surface: #ffffff;
             --text-main: #334155;
             --text-muted: #64748b;
@@ -19,90 +19,220 @@
             --danger-hover: #dc2626;
             --success-bg: #dcfce7;
             --success-text: #166534;
+            --shadow-sm: 0 2px 8px rgba(10,37,64,0.06);
+            --shadow-md: 0 8px 24px rgba(10,37,64,0.10);
+            --shadow-lg: 0 20px 48px rgba(10,37,64,0.18);
+            --ease-bounce: cubic-bezier(0.34,1.56,0.64,1);
+            --ease-smooth: cubic-bezier(0.4,0,0.2,1);
         }
-
         body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; margin: 0; background-color: var(--bg-color); color: var(--text-main); -webkit-font-smoothing: antialiased; }
 
-        /* Login */
-        #auth-section { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-        .login-card { background: var(--surface); padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); width: 100%; max-width: 380px; text-align: center; border-top: 5px solid var(--orbis-blue); }
-        .login-card h1 { margin: 0 0 10px; font-size: 24px; color: var(--orbis-blue); letter-spacing: -0.5px; }
-        .login-card p { color: var(--text-muted); font-size: 14px; margin-bottom: 25px; }
-        .form-group { margin-bottom: 15px; text-align: left; }
-        .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; color: var(--orbis-blue); }
-        .form-group input { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; transition: border-color 0.2s; }
-        .form-group input:focus { outline: none; border-color: var(--orbis-accent); box-shadow: 0 0 0 3px rgba(0,102,204,0.1); }
-        .btn-primary { width: 100%; padding: 12px; background-color: var(--orbis-accent); color: white; border: none; border-radius: 6px; font-size: 15px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; margin-top: 10px; }
-        .btn-primary:hover { background-color: var(--orbis-blue-hover); }
-        #login-error { color: var(--danger); font-size: 13px; margin-top: 15px; display: none; font-weight: 500; background: #fef2f2; padding: 10px; border-radius: 6px; }
+        @keyframes slideDown  { from{opacity:0;transform:translateY(-22px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes slideUp    { from{opacity:0;transform:translateY(22px)}  to{opacity:1;transform:translateY(0)} }
+        @keyframes slideLeft  { from{opacity:0;transform:translateX(-20px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes rowIn      { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
+        @keyframes spin       { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes shimmer    { 0%{background-position:-400% 0} 100%{background-position:400% 0} }
+        @keyframes toastIn    { from{opacity:0;transform:translateX(110%)} to{opacity:1;transform:translateX(0)} }
+        @keyframes toastOut   { from{opacity:1;transform:translateX(0)}    to{opacity:0;transform:translateX(110%)} }
+        @keyframes pulseGlow  { 0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,.3)} 50%{box-shadow:0 0 0 7px rgba(22,163,74,0)} }
+        @keyframes gradFlow   { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+        @keyframes shake      { 0%,100%{transform:translateX(0)} 25%,75%{transform:translateX(-7px)} 50%{transform:translateX(7px)} }
+        @keyframes countPop   { from{opacity:0;transform:scale(.6)} to{opacity:1;transform:scale(1)} }
+        @keyframes rippleAnim { to{transform:scale(4);opacity:0} }
+        @keyframes fadeIn     { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
 
-        /* Panel Principal */
-        #app-content { display: none; }
-        .topbar { background-color: var(--orbis-blue); color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .topbar-brand { font-size: 18px; font-weight: 700; letter-spacing: 1px; }
-        .topbar-brand span { color: #94a3b8; font-weight: 400; font-size: 14px; margin-left: 10px; }
-        .btn-danger { background-color: var(--danger); color: white; border: none; padding: 8px 16px; border-radius: 4px; font-size: 13px; font-weight: 600; cursor: pointer; }
-        .btn-danger:hover { background-color: var(--danger-hover); }
-        .dashboard-container { max-width: 1300px; margin: 30px auto; padding: 0 20px; }
-        .header-actions { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
-        .header-actions h2 { margin: 0; color: var(--orbis-blue); }
-        .header-actions p { margin: 5px 0 0; color: var(--text-muted); font-size: 14px; }
+        /* ── AUTH ─────────────────────────────────────── */
+        #auth-section {
+            display:flex; align-items:center; justify-content:center;
+            min-height:100vh; padding:20px;
+            background: linear-gradient(135deg,#0a2540,#0b3d7c,#005fcc,#0a2540);
+            background-size: 300% 300%;
+            animation: gradFlow 8s ease infinite;
+        }
+        .login-card {
+            background:var(--surface); padding:40px; border-radius:12px;
+            box-shadow:0 24px 60px rgba(0,0,0,.25);
+            width:100%; max-width:380px; text-align:center;
+            border-top:5px solid var(--orbis-blue);
+            animation: slideDown .7s var(--ease-bounce);
+        }
+        .login-card h1 {
+            margin:0 0 10px; font-size:30px; letter-spacing:4px;
+            background:linear-gradient(135deg,#0a2540,#0066cc);
+            -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+        }
+        .login-card p { color:var(--text-muted); font-size:14px; margin-bottom:25px; }
+        .form-group { margin-bottom:15px; text-align:left; }
+        .form-group label { display:block; font-size:13px; font-weight:600; margin-bottom:5px; color:var(--orbis-blue); }
+        .form-group input {
+            width:100%; box-sizing:border-box; padding:12px;
+            border:1px solid var(--border-color); border-radius:6px; font-size:14px;
+            transition:border-color .2s, box-shadow .2s, transform .2s;
+        }
+        .form-group input:focus { outline:none; border-color:var(--orbis-accent); box-shadow:0 0 0 3px rgba(0,102,204,.1); transform:translateY(-1px); }
+        #login-error { color:var(--danger); font-size:13px; margin-top:15px; display:none; font-weight:500; background:#fef2f2; padding:10px; border-radius:6px; }
 
-        /* Tabla y Badges */
-        .table-card { background: var(--surface); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.02), 0 1px 3px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid var(--border-color); }
-        .table-responsive { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; text-align: left; }
-        th, td { padding: 16px 15px; border-bottom: 1px solid var(--border-color); font-size: 14px; vertical-align: top; }
-        th { background-color: #f8fafc; color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; white-space: nowrap; }
-        tr:hover { background-color: #f8fafc; }
-        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
-        .badge-cart-empty { background-color: #f1f5f9; color: var(--text-muted); }
-        .badge-cart-active { background-color: var(--success-bg); color: var(--success-text); }
-        code { background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 13px; color: var(--orbis-blue); }
+        /* ── BUTTONS ──────────────────────────────────── */
+        .btn-primary {
+            width:100%; padding:12px; background:var(--orbis-accent); color:white;
+            border:none; border-radius:6px; font-size:15px; font-weight:600;
+            cursor:pointer; margin-top:10px; position:relative; overflow:hidden;
+            transition:transform .2s var(--ease-bounce), box-shadow .2s, background-color .2s;
+        }
+        .btn-primary:hover { background:var(--orbis-blue-hover); transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,102,204,.4); }
+        .btn-danger {
+            background:var(--danger); color:white; border:none; padding:8px 16px;
+            border-radius:4px; font-size:13px; font-weight:600; cursor:pointer;
+            position:relative; overflow:hidden;
+            transition:transform .2s var(--ease-bounce), box-shadow .2s, background-color .2s;
+        }
+        .btn-danger:hover { background:var(--danger-hover); transform:translateY(-1px); box-shadow:0 4px 14px rgba(239,68,68,.35); }
+        .btn-save {
+            background:var(--orbis-blue); color:white; border:none; padding:6px 12px;
+            border-radius:4px; font-size:11px; font-weight:600; cursor:pointer; width:100%;
+            position:relative; overflow:hidden;
+            transition:transform .2s var(--ease-bounce), box-shadow .2s, background-color .2s;
+        }
+        .btn-save:hover { background:var(--orbis-accent); transform:translateY(-1px); box-shadow:0 4px 14px rgba(10,37,64,.25); }
+        .ripple { position:absolute; border-radius:50%; background:rgba(255,255,255,.3); transform:scale(0); animation:rippleAnim .55s linear; pointer-events:none; }
 
-        /* Switch Toggle */
-        .switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 22px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
-        input:checked + .slider { background-color: var(--success-text); }
-        input:checked + .slider:before { transform: translateX(18px); }
-        input:disabled + .slider { opacity: 0.6; cursor: not-allowed; }
-        
-        .toggle-container { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-        .toggle-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
-        .toggle-label.active { color: var(--success-text); }
+        /* ── TOPBAR ───────────────────────────────────── */
+        #app-content { display:none; }
+        .topbar {
+            background:linear-gradient(120deg,#0a2540 0%,#0c3a6e 50%,#0059a8 100%);
+            background-size:200%; animation:gradFlow 10s ease infinite;
+            color:white; padding:11px 28px;
+            display:flex; justify-content:space-between; align-items:center;
+            box-shadow:0 2px 8px rgba(0,0,0,.15);
+        }
+        .topbar-brand { font-size:18px; font-weight:700; letter-spacing:2px; display:flex; align-items:center; gap:9px; }
+        .topbar-brand span { color:#94a3b8; font-weight:400; font-size:14px; margin-left:6px; }
+        .brand-logo { display:inline-block; animation:spin 9s linear infinite; }
+        .topbar-right { display:flex; align-items:center; gap:16px; }
+        .topbar-time { font-size:13px; color:rgba(255,255,255,.55); font-variant-numeric:tabular-nums; letter-spacing:1px; }
+        .topbar-user { display:flex; align-items:center; gap:8px; font-size:12px; color:rgba(255,255,255,.65); }
+        .topbar-avatar {
+            width:32px; height:32px; background:linear-gradient(135deg,#4fa3e0,#0066cc);
+            border-radius:50%; display:flex; align-items:center; justify-content:center;
+            font-weight:700; font-size:14px; color:white; flex-shrink:0;
+            box-shadow:0 0 0 2px rgba(255,255,255,.2);
+        }
 
-        /* Paneles de Configuración (Crédito y Descuento) */
-        .config-panel { display: none; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; margin-top: 5px; }
-        .config-panel.show { display: block; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .config-input-group { display: flex; gap: 5px; margin-bottom: 8px; align-items: center; }
-        .config-input-group input[type="number"] { width: 60px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; outline: none; }
-        .config-input-group select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; outline: none; background: white; }
-        .config-input-group span { font-weight: 600; color: var(--text-muted); font-size: 14px; }
-        
-        .btn-save { background-color: var(--orbis-blue); color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; width: 100%; transition: 0.2s; }
-        .btn-save:hover { background-color: var(--orbis-accent); }
+        /* ── LAYOUT ───────────────────────────────────── */
+        .dashboard-container { max-width:1300px; margin:30px auto; padding:0 20px; animation:slideUp .45s ease; }
+        .header-actions { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:20px; animation:slideLeft .4s ease; }
+        .header-actions h2 { margin:0; color:var(--orbis-blue); }
+        .header-actions p { margin:5px 0 0; color:var(--text-muted); font-size:14px; }
+
+        /* ── STATS ────────────────────────────────────── */
+        .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-bottom:20px; }
+        .stat-card {
+            background:var(--surface); border-radius:12px; padding:16px 18px;
+            box-shadow:var(--shadow-sm); border:1px solid var(--border-color);
+            display:flex; align-items:center; gap:13px;
+            transition:transform .25s var(--ease-bounce), box-shadow .25s ease;
+            animation:slideUp .5s var(--ease-bounce) both; cursor:default;
+        }
+        .stat-card:hover { transform:translateY(-5px) scale(1.02); box-shadow:var(--shadow-md); }
+        .stat-icon { font-size:26px; width:48px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:linear-gradient(135deg,#dbeafe,#eff6ff); flex-shrink:0; }
+        .stat-number { font-size:28px; font-weight:800; color:var(--orbis-blue); line-height:1; animation:countPop .4s var(--ease-bounce); }
+        .stat-label { font-size:11px; color:var(--text-muted); font-weight:600; margin-top:3px; text-transform:uppercase; letter-spacing:.5px; }
+
+        /* ── SEARCH ───────────────────────────────────── */
+        .search-bar-container {
+            padding:13px 18px; border-bottom:1px solid var(--border-color);
+            background:#f8fafc; display:flex; align-items:center; gap:10px;
+        }
+        .search-input { flex:1; border:none; background:transparent; font-size:14px; color:var(--text-main); outline:none; padding:4px 0; }
+        .search-input::placeholder { color:#b0bec5; }
+        .search-count { font-size:12px; color:var(--orbis-accent); font-weight:600; white-space:nowrap; }
+
+        /* ── TABLE ────────────────────────────────────── */
+        .table-card { background:var(--surface); border-radius:8px; box-shadow:var(--shadow-sm); overflow:hidden; border:1px solid var(--border-color); animation:slideUp .5s ease .1s both; }
+        .table-responsive { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; text-align:left; }
+        th, td { padding:16px 15px; border-bottom:1px solid var(--border-color); font-size:14px; vertical-align:top; }
+        th { background:#f8fafc; color:var(--text-muted); font-weight:600; text-transform:uppercase; font-size:12px; letter-spacing:.5px; white-space:nowrap; }
+        tbody tr { animation:rowIn .4s ease both; }
+        tbody tr:hover { background:linear-gradient(90deg,#eef6ff,#f8fafc) !important; }
+        .badge { padding:4px 10px; border-radius:20px; font-size:12px; font-weight:600; display:inline-block; }
+        .badge-cart-empty { background:#f1f5f9; color:var(--text-muted); }
+        .badge-cart-active { background:var(--success-bg); color:var(--success-text); animation:pulseGlow 2s ease-in-out infinite; }
+        code { background:#f1f5f9; padding:4px 8px; border-radius:4px; font-family:monospace; font-size:13px; color:var(--orbis-blue); }
+        .client-avatar {
+            width:36px; height:36px; border-radius:50%;
+            display:flex; align-items:center; justify-content:center;
+            color:white; font-weight:700; font-size:14px; flex-shrink:0;
+            box-shadow:0 2px 8px rgba(0,0,0,.12);
+        }
+
+        /* ── TOGGLE ───────────────────────────────────── */
+        .switch { position:relative; display:inline-block; width:40px; height:22px; flex-shrink:0; }
+        .switch input { opacity:0; width:0; height:0; }
+        .slider { position:absolute; cursor:pointer; inset:0; background:#cbd5e1; transition:.3s; border-radius:22px; }
+        .slider:before { position:absolute; content:""; height:16px; width:16px; left:3px; bottom:3px; background:white; transition:.3s; border-radius:50%; box-shadow:0 2px 4px rgba(0,0,0,.2); }
+        input:checked + .slider { background:linear-gradient(135deg,#15803d,#16a34a); box-shadow:0 0 14px rgba(22,163,74,.4); }
+        input:checked + .slider:before { transform:translateX(18px); }
+        input:disabled + .slider { opacity:.6; cursor:not-allowed; }
+        .toggle-container { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+        .toggle-label { font-size:12px; font-weight:600; color:var(--text-muted); }
+        .toggle-label.active { color:var(--success-text); }
+        .config-panel { display:none; background:linear-gradient(135deg,#f0f7ff,#f8fafc); border:1px solid #bfdbfe; border-radius:6px; padding:10px; margin-top:5px; }
+        .config-panel.show { display:block; animation:fadeIn .3s ease; }
+        .config-input-group { display:flex; gap:5px; margin-bottom:8px; align-items:center; }
+        .config-input-group input[type="number"] { width:60px; padding:6px; border:1px solid #ccc; border-radius:4px; font-size:13px; outline:none; }
+        .config-input-group select { padding:6px; border:1px solid #ccc; border-radius:4px; font-size:13px; outline:none; background:white; }
+        .config-input-group span { font-weight:600; color:var(--text-muted); font-size:14px; }
+
+        /* ── SKELETONS ────────────────────────────────── */
+        .skeleton { background:linear-gradient(90deg,#e8edf2 25%,#f4f7fa 50%,#e8edf2 75%); background-size:400% 100%; animation:shimmer 1.6s ease-in-out infinite; border-radius:6px; }
+        .skeleton-row { padding:20px 15px; border-bottom:1px solid var(--border-color); display:grid; grid-template-columns:2fr 1.5fr 1fr 1.5fr 1.5fr; gap:15px; align-items:center; }
+        .skeleton-cell { height:14px; }
+        .skeleton-cell.tall { height:40px; }
+        .skeleton-cell.short { width:65%; }
+
+        /* ── TOASTS ───────────────────────────────────── */
+        #toast-container { position:fixed; top:18px; right:18px; z-index:9999; display:flex; flex-direction:column; gap:10px; pointer-events:none; }
+        .toast { background:var(--orbis-blue); color:white; padding:13px 15px; border-radius:10px; font-size:13px; font-weight:500; box-shadow:0 8px 28px rgba(0,0,0,.18); display:flex; align-items:center; gap:10px; min-width:250px; max-width:350px; animation:toastIn .35s var(--ease-bounce); border-left:4px solid rgba(255,255,255,.25); pointer-events:all; }
+        .toast.success { background:#15803d; border-left-color:#4ade80; }
+        .toast.error   { background:#b91c1c; border-left-color:#f87171; }
+        .toast.warning { background:#b45309; border-left-color:#fbbf24; }
+        .toast.hiding  { animation:toastOut .3s ease forwards; }
+        .toast-msg { flex:1; line-height:1.35; }
+        .toast-close { cursor:pointer; opacity:.6; font-size:18px; flex-shrink:0; transition:opacity .15s; }
+        .toast-close:hover { opacity:1; }
+
+        /* ── MODAL ────────────────────────────────────── */
+        #modal-overlay { position:fixed; inset:0; background:rgba(10,37,64,.6); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); z-index:1000; display:flex; align-items:center; justify-content:center; }
+        .modal-box { background:white; border-radius:16px; padding:30px; width:100%; max-width:440px; margin:20px; box-shadow:var(--shadow-lg); animation:slideDown .4s var(--ease-bounce); border-top:4px solid var(--orbis-accent); }
+        .modal-box h3 { margin:0 0 5px; color:var(--orbis-blue); font-size:18px; }
+        .modal-sub { color:var(--text-muted); font-size:13px; margin-bottom:18px; }
+        .modal-input { width:100%; box-sizing:border-box; padding:11px 13px; border:1px solid var(--border-color); border-radius:8px; font-size:14px; margin-bottom:10px; outline:none; transition:border-color .2s, box-shadow .2s, transform .2s; }
+        .modal-input:focus { border-color:var(--orbis-accent); box-shadow:0 0 0 3px rgba(0,102,204,.1); transform:translateY(-1px); }
+        .modal-actions { display:flex; gap:10px; margin-top:8px; }
+        .modal-actions .btn-primary { flex:1; margin:0; padding:11px; }
+        .modal-btn-cancel { flex:1; padding:11px; background:#f1f5f9; color:var(--text-muted); border:none; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; transition:background .2s, transform .2s; }
+        .modal-btn-cancel:hover { background:#e2e8f0; transform:translateY(-1px); }
     </style>
 </head>
 <body>
+
+<div id="toast-container"></div>
+<div id="modal-overlay" style="display:none;"></div>
 
 <div id="auth-section">
     <div class="login-card">
         <h1>ORBISCORP</h1>
         <p>E-Commerce Industrial • Acceso Administrativo</p>
-        
         <div class="form-group">
             <label for="email-input">Correo Institucional</label>
-            <input type="email" id="email-input" placeholder="admin@orbiscorp.com" required>
+            <input type="email" id="email-input" placeholder="admin@orbiscorp.com">
         </div>
         <div class="form-group">
             <label for="password-input">Contraseña</label>
-            <input type="password" id="password-input" placeholder="••••••••" required>
+            <input type="password" id="password-input" placeholder="••••••••">
         </div>
-        
         <button id="login-btn" class="btn-primary">Ingresar al Sistema</button>
         <div id="login-error">Credenciales incorrectas o usuario sin autorización.</div>
     </div>
@@ -110,23 +240,68 @@
 
 <div id="app-content">
     <header class="topbar">
-        <div class="topbar-brand">ORBISCORP <span>| Gestión de E-Commerce</span></div>
-        <button id="logout-btn" class="btn-danger">Cerrar Sesión</button>
+        <div class="topbar-brand">
+            <span class="brand-logo">⚙</span> ORBISCORP
+            <span>| E-Commerce Industrial</span>
+        </div>
+        <div class="topbar-right">
+            <div class="topbar-time" id="topbar-clock"></div>
+            <div class="topbar-user">
+                <div class="topbar-avatar" id="topbar-avatar">A</div>
+                <span id="topbar-email">Administrador</span>
+            </div>
+            <button id="logout-btn" class="btn-danger">⏻ Salir</button>
+        </div>
     </header>
 
     <main class="dashboard-container">
+        <div class="stats-grid">
+            <div class="stat-card" style="animation-delay:.05s">
+                <div class="stat-icon">👥</div>
+                <div><div class="stat-number" id="stat-total">—</div><div class="stat-label">Total Clientes</div></div>
+            </div>
+            <div class="stat-card" style="animation-delay:.12s">
+                <div class="stat-icon" style="background:linear-gradient(135deg,#dcfce7,#f0fdf4)">💳</div>
+                <div><div class="stat-number" id="stat-credito">—</div><div class="stat-label">Crédito Activo</div></div>
+            </div>
+            <div class="stat-card" style="animation-delay:.19s">
+                <div class="stat-icon" style="background:linear-gradient(135deg,#fef3c7,#fffbeb)">🏷️</div>
+                <div><div class="stat-number" id="stat-descuento">—</div><div class="stat-label">Descuento B2B</div></div>
+            </div>
+            <div class="stat-card" style="animation-delay:.26s">
+                <div class="stat-icon" style="background:linear-gradient(135deg,#ede9fe,#f5f3ff)">🛒</div>
+                <div><div class="stat-number" id="stat-carrito">—</div><div class="stat-label">Carrito Activo</div></div>
+            </div>
+        </div>
+
         <div class="header-actions">
             <div>
                 <h2>Directorio de Clientes B2B</h2>
                 <p>Configura líneas de crédito y listas de descuento por cliente.</p>
             </div>
-            <button class="btn-primary" onclick="cargarClientes()" style="width: auto; margin: 0;">↻ Actualizar Datos</button>
+            <button class="btn-primary" id="btn-actualizar" style="width:auto;margin:0;">↻ Actualizar</button>
+            <button class="btn-primary" id="btn-empresas" style="width:auto;margin:0 0 0 10px;background:#0a2540;">🏢 Empresas</button>
         </div>
-        
+
         <div class="table-card">
-            <div id="client-list">
-                <p style="padding: 20px; color: var(--text-muted);"><i>Estableciendo conexión segura con Firestore...</i></p>
+            <div class="search-bar-container">
+                <span>🔍</span>
+                <input type="text" class="search-input" id="search-input" placeholder="Buscar por nombre, empresa, email o RFC...">
+                <span class="search-count" id="search-count"></span>
             </div>
+            <div id="client-list">
+                <div class="skeleton-row"><div class="skeleton skeleton-cell"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell tall"></div><div class="skeleton skeleton-cell tall"></div></div>
+                <div class="skeleton-row"><div class="skeleton skeleton-cell"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell tall"></div><div class="skeleton skeleton-cell tall"></div></div>
+                <div class="skeleton-row"><div class="skeleton skeleton-cell"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell tall"></div><div class="skeleton skeleton-cell tall"></div></div>
+            </div>
+        </div>
+
+        <div id="vista-empresas" style="display:none;margin-top:30px;">
+            <div class="header-actions">
+                <div><h2>Empresas Afiliadas</h2><p>Crea cuentas de empresa, asigna dueños y controla inventario.</p></div>
+                <button class="btn-primary" id="btn-nueva-empresa" style="width:auto;margin:0;">+ Nueva Empresa</button>
+            </div>
+            <div class="table-card"><div id="empresas-list"><p style="padding:20px;">Cargando...</p></div></div>
         </div>
     </main>
 </div>
@@ -134,7 +309,7 @@
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-    import { getFirestore, collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, doc, updateDoc, addDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyAGH8YGQ66vCFXlJe4so2Vyvqvqv4GnTUs",
@@ -142,269 +317,364 @@
         projectId: "tienda-en-linea-370f0",
         storageBucket: "tienda-en-linea-370f0.firebasestorage.app",
         messagingSenderId: "796590648278",
-        appId: "1:796590648278:web:d165be0c077b1049b61277",
-        measurementId: "G-NJH78V7X1K"
+        appId: "1:796590648278:web:d165be0c077b1049b61277"
     };
 
-    const app = initializeApp(firebaseConfig);
+    const app  = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db = getFirestore(app);
-
-    const authSection = document.getElementById('auth-section');
-    const appContent = document.getElementById('app-content');
-    const loginBtn = document.getElementById('login-btn');
-    const logoutBtn = document.getElementById('logout-btn');
-    const clientListDiv = document.getElementById('client-list');
-    
-    const emailInput = document.getElementById('email-input');
-    const passwordInput = document.getElementById('password-input');
-    const loginError = document.getElementById('login-error');
-
+    const db   = getFirestore(app);
     const ADMIN_UID = "4UrZQMY4SDXiZgz91yTuiBnf4PD3";
 
-    onAuthStateChanged(auth, (user) => {
+    const $ = id => document.getElementById(id);
+
+    // ════════════════════════════════════════
+    // ESTADO GLOBAL
+    // ════════════════════════════════════════
+    let _rows = [];
+
+    // ════════════════════════════════════════
+    // UTILIDADES
+    // ════════════════════════════════════════
+    function showToast(msg, type = 'info', ms = 3200) {
+        const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+        const t = document.createElement('div');
+        t.className = `toast ${type}`;
+        t.innerHTML = `<span style="font-size:17px">${icons[type]||'ℹ️'}</span><span class="toast-msg">${msg}</span><span class="toast-close">✕</span>`;
+        t.querySelector('.toast-close').onclick = () => { t.classList.add('hiding'); setTimeout(()=>t.remove(),280); };
+        $('toast-container').appendChild(t);
+        setTimeout(() => { t.classList.add('hiding'); setTimeout(()=>t.remove(),280); }, ms);
+    }
+
+    function showModal({ title='', subtitle='', inputs=[], message='', confirmText='Confirmar', danger=false }) {
+        return new Promise(resolve => {
+            const overlay = $('modal-overlay');
+            const btnStyle = danger ? 'background:var(--danger);' : '';
+            overlay.innerHTML = `
+                <div class="modal-box">
+                    <h3>${title}</h3>
+                    <p class="modal-sub">${subtitle}</p>
+                    ${inputs.map(i=>`<input id="mi-${i.id}" class="modal-input" type="${i.type||'text'}" placeholder="${i.placeholder||''}">`).join('')}
+                    ${message?`<div style="margin-bottom:16px;max-height:240px;overflow-y:auto;border-radius:8px;border:1px solid var(--border-color);padding:12px">${message}</div>`:''}
+                    <div class="modal-actions">
+                        <button class="modal-btn-cancel" id="m-cancel">Cancelar</button>
+                        <button class="btn-primary" id="m-confirm" style="${btnStyle}margin:0;flex:1;padding:11px">${confirmText}</button>
+                    </div>
+                </div>`;
+            overlay.style.display = 'flex';
+            const done = val => { overlay.style.display='none'; resolve(val); };
+            $('m-confirm').onclick = () => {
+                if (inputs.length) {
+                    const r = {}; inputs.forEach(i=>{ r[i.id]=$(`mi-${i.id}`).value; }); done(r);
+                } else { done(true); }
+            };
+            $('m-cancel').onclick = () => done(null);
+            overlay.onclick = e => { if(e.target===overlay) done(null); };
+            setTimeout(()=>{ const f=overlay.querySelector('.modal-input'); if(f)f.focus(); },80);
+        });
+    }
+
+    function updateStats(arr) {
+        const run = (id, val) => {
+            const el=$(id); if(!el) return;
+            let n=0, step=Math.max(1,Math.ceil(val/25));
+            const iv=setInterval(()=>{ n=Math.min(n+step,val); el.textContent=n; if(n>=val)clearInterval(iv); },35);
+        };
+        run('stat-total',     arr.length);
+        run('stat-credito',   arr.filter(c=>c.credito_aprobado).length);
+        run('stat-descuento', arr.filter(c=>c.tiene_descuento).length);
+        run('stat-carrito',   arr.filter(c=>c.carrito&&c.carrito.length>0).length);
+    }
+
+    function filtrarClientes(q) {
+        const s=q.toLowerCase().trim(); let v=0;
+        _rows.forEach(({el,text})=>{ const m=!s||text.includes(s); el.style.display=m?'':'none'; if(m)v++; });
+        const el=$('search-count');
+        if(el) el.textContent=s?`${v} resultado${v!==1?'s':''}` :'';
+    }
+
+    function startClock() {
+        const tick=()=>{ const el=$('topbar-clock'); if(el) el.textContent=new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); };
+        tick(); setInterval(tick,1000);
+    }
+
+    function addRipple() {
+        document.querySelectorAll('.btn-primary,.btn-save,.btn-danger').forEach(btn=>{
+            if(btn.dataset.rpl) return; btn.dataset.rpl='1';
+            btn.addEventListener('click',e=>{
+                const r=document.createElement('span'); r.className='ripple';
+                const rect=btn.getBoundingClientRect(), s=Math.max(rect.width,rect.height);
+                r.style.cssText=`width:${s}px;height:${s}px;left:${e.clientX-rect.left-s/2}px;top:${e.clientY-rect.top-s/2}px`;
+                btn.appendChild(r); r.addEventListener('animationend',()=>r.remove());
+            });
+        });
+    }
+
+    const PALETTE=['#0066cc','#0a2540','#7c3aed','#0891b2','#059669','#d97706','#dc2626'];
+    function avatarColor(name) {
+        let h=0; for(let i=0;i<name.length;i++) h=name.charCodeAt(i)+((h<<5)-h);
+        return PALETTE[Math.abs(h)%PALETTE.length];
+    }
+
+    // ════════════════════════════════════════
+    // AUTH
+    // ════════════════════════════════════════
+    onAuthStateChanged(auth, user => {
         if (user && user.uid === ADMIN_UID) {
-            authSection.style.display = 'none';
-            appContent.style.display = 'block';
+            $('auth-section').style.display = 'none';
+            $('app-content').style.display  = 'block';
+            $('topbar-email').textContent   = user.email || 'Administrador';
+            $('topbar-avatar').textContent  = (user.email||'A').charAt(0).toUpperCase();
+            startClock();
+            setTimeout(addRipple, 400);
             cargarClientes();
         } else {
             if(user) signOut(auth);
-            authSection.style.display = 'flex';
-            appContent.style.display = 'none';
+            $('auth-section').style.display = 'flex';
+            $('app-content').style.display  = 'none';
         }
     });
 
-    loginBtn.addEventListener('click', () => {
-        const email = emailInput.value;
-        const password = passwordInput.value;
-        loginError.style.display = 'none';
-
-        if (!email || !password) return;
-
-        loginBtn.innerText = "Autenticando...";
-        signInWithEmailAndPassword(auth, email, password)
-            .catch(() => { loginError.style.display = 'block'; })
-            .finally(() => { loginBtn.innerText = "Ingresar al Sistema"; });
+    $('login-btn').addEventListener('click', () => {
+        const email=$('email-input').value.trim(), pass=$('password-input').value;
+        $('login-error').style.display='none';
+        if(!email||!pass){
+            const bad=!email?$('email-input'):$('password-input');
+            bad.style.borderColor='var(--danger)'; bad.style.animation='shake .4s ease';
+            bad.addEventListener('animationend',()=>{bad.style.animation='';bad.style.borderColor='';},{once:true});
+            return;
+        }
+        const btn=$('login-btn'); btn.disabled=true;
+        btn.innerHTML='<span style="display:inline-block;animation:spin .8s linear infinite">⏳</span> Verificando...';
+        signInWithEmailAndPassword(auth,email,pass)
+            .catch(()=>{ $('login-error').style.display='block'; $('login-error').style.animation='shake .4s ease'; $('login-error').addEventListener('animationend',()=>$('login-error').style.animation='',{once:true}); })
+            .finally(()=>{ btn.innerHTML='Ingresar al Sistema'; btn.disabled=false; });
     });
 
-    logoutBtn.addEventListener('click', () => signOut(auth));
+    $('logout-btn').addEventListener('click', ()=>signOut(auth));
 
-    // ==========================================
-    // LÓGICA DE CRÉDITO
-    // ==========================================
-    window.toggleCredito = async function(clienteId, checkboxElement) {
-        const panel = document.getElementById(`panel-credito-${clienteId}`);
-        const labelText = document.getElementById(`label-credito-${clienteId}`);
-        const estado = checkboxElement.checked;
+    // Eventos delegados — NO hay onclick en HTML, todo aquí
+    document.addEventListener('click', e => {
+        if (e.target.id==='btn-actualizar')     cargarClientes();
+        if (e.target.id==='btn-empresas')       mostrarVistaEmpresas();
+        if (e.target.id==='btn-nueva-empresa')  abrirModalNuevaEmpresa();
+    });
 
-        checkboxElement.disabled = true;
+    $('search-input').addEventListener('input', e => filtrarClientes(e.target.value));
+
+    // ════════════════════════════════════════
+    // CRÉDITO
+    // ════════════════════════════════════════
+    window.toggleCredito = async function(id, cb) {
+        const panel=$(`panel-credito-${id}`), label=$(`label-credito-${id}`), on=cb.checked;
+        cb.disabled=true;
         try {
-            await updateDoc(doc(db, "clientes", clienteId), { credito_aprobado: estado });
-            
-            if (estado) {
-                labelText.innerText = "ACTIVO";
-                labelText.classList.add("active");
-                panel.classList.add("show");
-            } else {
-                labelText.innerText = "INACTIVO";
-                labelText.classList.remove("active");
-                panel.classList.remove("show");
-            }
-        } catch (error) {
-            alert("Error al actualizar estado.");
-            checkboxElement.checked = !estado;
-        } finally {
-            checkboxElement.disabled = false;
-        }
+            await updateDoc(doc(db,'clientes',id),{credito_aprobado:on});
+            if(on){label.textContent='ACTIVO';label.classList.add('active');panel.classList.add('show');showToast('Crédito activado','success',2200);}
+            else  {label.textContent='INACTIVO';label.classList.remove('active');panel.classList.remove('show');showToast('Crédito desactivado','info',2200);}
+        } catch { showToast('Error al actualizar crédito','error'); cb.checked=!on; }
+        finally { cb.disabled=false; }
     };
 
-    window.guardarPlazoCredito = async function(clienteId) {
-        const valorInput = document.getElementById(`credito-val-${clienteId}`).value;
-        const tipoInput = document.getElementById(`credito-tipo-${clienteId}`).value;
-        const btn = document.getElementById(`btn-credito-${clienteId}`);
-
-        if (!valorInput || valorInput <= 0) {
-            alert("Por favor ingresa un número válido de días o meses.");
-            return;
-        }
-
-        btn.innerText = "Guardando...";
+    window.guardarPlazoCredito = async function(id) {
+        const val=$(`credito-val-${id}`).value, tipo=$(`credito-tipo-${id}`).value, btn=$(`btn-credito-${id}`);
+        if(!val||val<=0){showToast('Ingresa un número válido','warning');return;}
+        btn.innerHTML='⏳ Guardando...'; btn.disabled=true;
         try {
-            await updateDoc(doc(db, "clientes", clienteId), {
-                credito_duracion: parseInt(valorInput),
-                credito_tipo_duracion: tipoInput
+            await updateDoc(doc(db,'clientes',id),{credito_duracion:parseInt(val),credito_tipo_duracion:tipo});
+            showToast(`Plazo: ${val} ${tipo} guardado ✓`,'success');
+            btn.innerHTML='✓ Guardado!'; btn.style.background='var(--success-text)';
+            setTimeout(()=>{btn.innerHTML='💾 Guardar Plazo';btn.style.background='';btn.disabled=false;},2000);
+        } catch { showToast('Error al guardar plazo','error'); btn.innerHTML='💾 Guardar Plazo'; btn.disabled=false; }
+    };
+
+    // ════════════════════════════════════════
+    // DESCUENTO
+    // ════════════════════════════════════════
+    window.toggleDescuento = async function(id, cb) {
+        const panel=$(`panel-desc-${id}`), label=$(`label-desc-${id}`), on=cb.checked;
+        cb.disabled=true;
+        try {
+            await updateDoc(doc(db,'clientes',id),{tiene_descuento:on});
+            if(on){label.textContent='APLICADO';label.classList.add('active');panel.classList.add('show');showToast('Descuento B2B activado','success',2200);}
+            else  {label.textContent='SIN DESCUENTO';label.classList.remove('active');panel.classList.remove('show');showToast('Descuento desactivado','info',2200);}
+        } catch { showToast('Error al actualizar descuento','error'); cb.checked=!on; }
+        finally { cb.disabled=false; }
+    };
+
+    window.guardarPorcentajeDescuento = async function(id) {
+        const val=$(`desc-val-${id}`).value, pct=parseInt(val), btn=$(`btn-desc-${id}`);
+        if(!pct||pct<1||pct>100){showToast('El descuento debe ser entre 1 y 100','warning');return;}
+        btn.innerHTML='⏳ Guardando...'; btn.disabled=true;
+        try {
+            await updateDoc(doc(db,'clientes',id),{porcentaje_descuento:pct});
+            showToast(`Descuento del ${pct}% guardado ✓`,'success');
+            btn.innerHTML='✓ Guardado!'; btn.style.background='var(--success-text)';
+            setTimeout(()=>{btn.innerHTML='💾 Guardar %';btn.style.background='';btn.disabled=false;},2000);
+        } catch { showToast('Error al guardar descuento','error'); btn.innerHTML='💾 Guardar %'; btn.disabled=false; }
+    };
+
+    // ════════════════════════════════════════
+    // NAVEGACIÓN
+    // ════════════════════════════════════════
+    function mostrarVistaEmpresas() {
+        document.querySelector('.stats-grid').style.display='none';
+        document.querySelector('.dashboard-container > .header-actions').style.display='none';
+        document.querySelector('.table-card').style.display='none';
+        $('vista-empresas').style.display='block';
+        cargarEmpresas();
+    }
+
+    window.volverAClientes = function() {
+        document.querySelector('.stats-grid').style.display='';
+        document.querySelector('.dashboard-container > .header-actions').style.display='flex';
+        document.querySelector('.table-card').style.display='block';
+        $('vista-empresas').style.display='none';
+    };
+
+    // ════════════════════════════════════════
+    // EMPRESAS
+    // ════════════════════════════════════════
+    async function abrirModalNuevaEmpresa() {
+        const res = await showModal({
+            title:'🏢 Nueva Empresa Afiliada',
+            subtitle:'Completa los datos para crear la cuenta empresarial.',
+            inputs:[{id:'nombre',placeholder:'Nombre de la empresa'},{id:'email',placeholder:'Correo del dueño (ya registrado)',type:'email'}],
+            confirmText:'✓ Crear Empresa'
+        });
+        if(!res||!res.nombre||!res.email) return;
+        try {
+            const q=query(collection(db,'clientes'),where('email','==',res.email.trim().toLowerCase()));
+            const snap=await getDocs(q);
+            if(snap.empty){showToast('No se encontró ese correo','error');return;}
+            const cDoc=snap.docs[0];
+            const eRef=await addDoc(collection(db,'empresas'),{nombreEmpresa:res.nombre.trim(),ownerUid:cDoc.id,activo:true,creadoEn:new Date()});
+            await updateDoc(doc(db,'clientes',cDoc.id),{empresaId:eRef.id,rolEmpresa:'owner'});
+            showToast(`Empresa "${res.nombre}" creada ✓`,'success');
+            cargarEmpresas();
+        } catch(e){showToast('Error: '+e.message,'error');}
+    }
+
+    window.cargarEmpresas = async function() {
+        const cont=$('empresas-list');
+        cont.innerHTML='<p style="padding:20px">↻ Cargando empresas...</p>';
+        const snap=await getDocs(collection(db,'empresas'));
+        if(snap.empty){cont.innerHTML='<p style="padding:20px">Sin empresas registradas.</p>';return;}
+        let html=`<div class="table-responsive"><table><thead><tr><th>Empresa</th><th>Empleados</th><th>Inventario</th><th>Acciones</th></tr></thead><tbody>`;
+        for(const d of snap.docs){
+            const emp=d.data(), eid=d.id;
+            const es=await getDocs(query(collection(db,'clientes'),where('empresaId','==',eid)));
+            html+=`<tr><td><strong>${emp.nombreEmpresa}</strong><br><span style="font-size:12px;color:var(--text-muted)">${es.size} cuenta(s)</span></td>
+                <td><button class="btn-save" style="width:auto;padding:6px 12px" onclick="verEmpleados('${eid}')">👥 Ver</button></td>
+                <td><button class="btn-save" style="width:auto;padding:6px 12px" onclick="gestionarInventario('${eid}','${emp.nombreEmpresa}')">📦 Inventario</button></td>
+                <td><button class="btn-danger" onclick="volverAClientes()">← Volver</button></td></tr>`;
+        }
+        cont.innerHTML=html+`</tbody></table></div>`;
+        setTimeout(addRipple,100);
+    };
+
+    window.verEmpleados = async function(empresaId) {
+        const snap=await getDocs(query(collection(db,'clientes'),where('empresaId','==',empresaId)));
+        let list='';
+        snap.forEach(d=>{const c=d.data();list+=`<div style="padding:8px 0;border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px"><span>${c.rolEmpresa==='owner'?'👑':'👤'}</span><div><strong>${c.nombre||''} ${c.apellido||''}</strong><br><span style="font-size:12px;color:var(--text-muted)">${c.email||''}</span></div></div>`;});
+        await showModal({title:'👥 Empleados vinculados',subtitle:`${snap.size} cuenta(s)`,message:list||'Sin empleados.',confirmText:'Cerrar'});
+    };
+
+    window.gestionarInventario = async function(empresaId, nombreEmpresa) {
+        const cont=$('empresas-list');
+        const snap=await getDocs(query(collection(db,'productos_consignacion'),where('empresaId','==',empresaId)));
+        let filas='';
+        snap.forEach(d=>{const p=d.data();filas+=`<tr><td>${p.producto}</td><td>${p.sku||''}</td><td>${p.cantidad}</td><td><button class="btn-danger" onclick="eliminarConsignacion('${d.id}','${empresaId}','${nombreEmpresa}')">✕</button></td></tr>`;});
+        cont.innerHTML=`<div style="padding:20px">
+            <h3 style="color:var(--orbis-blue);margin:0 0 12px">📦 Consignación — ${nombreEmpresa}</h3>
+            <div style="display:flex;gap:10px;margin-bottom:15px">
+                <button class="btn-primary" style="width:auto;margin:0" onclick="agregarConsignacion('${empresaId}','${nombreEmpresa}')">+ Agregar</button>
+                <button class="btn-danger" onclick="cargarEmpresas()">← Volver</button>
+            </div>
+            <div class="table-responsive"><table><thead><tr><th>Producto</th><th>SKU</th><th>Cantidad</th><th></th></tr></thead>
+            <tbody>${filas||'<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-muted)">Sin productos en consignación</td></tr>'}</tbody></table></div></div>`;
+        setTimeout(addRipple,100);
+    };
+
+    window.agregarConsignacion = async function(empresaId, nombreEmpresa) {
+        const res=await showModal({title:'📦 Agregar Consignación',subtitle:nombreEmpresa,inputs:[{id:'producto',placeholder:'Nombre del producto'},{id:'sku',placeholder:'SKU (opcional)'},{id:'cantidad',placeholder:'Cantidad',type:'number'}],confirmText:'✓ Agregar'});
+        if(!res||!res.producto||!res.cantidad) return;
+        await addDoc(collection(db,'productos_consignacion'),{empresaId,producto:res.producto,sku:res.sku||'',cantidad:parseInt(res.cantidad),updatedAt:new Date()});
+        showToast(`"${res.producto}" agregado ✓`,'success');
+        gestionarInventario(empresaId,nombreEmpresa);
+    };
+
+    window.eliminarConsignacion = async function(id, empresaId, nombreEmpresa) {
+        const ok=await showModal({title:'¿Eliminar este registro?',subtitle:'Esta acción no se puede deshacer.',confirmText:'Sí, eliminar',danger:true});
+        if(!ok) return;
+        await deleteDoc(doc(db,'productos_consignacion',id));
+        showToast('Registro eliminado','info',2000);
+        gestionarInventario(empresaId,nombreEmpresa);
+    };
+
+    // ════════════════════════════════════════
+    // CLIENTES
+    // ════════════════════════════════════════
+    async function cargarClientes() {
+        _rows=[];
+        $('client-list').innerHTML=`
+            <div class="skeleton-row"><div class="skeleton skeleton-cell"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell tall"></div><div class="skeleton skeleton-cell tall"></div></div>
+            <div class="skeleton-row"><div class="skeleton skeleton-cell"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell tall"></div><div class="skeleton skeleton-cell tall"></div></div>
+            <div class="skeleton-row"><div class="skeleton skeleton-cell"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell short"></div><div class="skeleton skeleton-cell tall"></div><div class="skeleton skeleton-cell tall"></div></div>`;
+        try {
+            const snap=await getDocs(collection(db,'clientes'));
+            if(snap.empty){$('client-list').innerHTML='<p style="padding:30px;text-align:center;color:var(--text-muted)">⚠️ No hay clientes.</p>';return;}
+            const all=[]; snap.forEach(d=>all.push({id:d.id,...d.data()}));
+            updateStats(all);
+            let html=`<div class="table-responsive"><table><thead><tr><th>Cliente</th><th>Empresa</th><th>Estado</th><th>Línea de Crédito</th><th>Descuento B2B</th></tr></thead><tbody id="clientes-tbody">`;
+            all.forEach((c,i)=>{
+                const nombre=`${c.nombre||''} ${c.apellido||''}`.trim()||'Desconocido';
+                const init=nombre.split(' ').map(w=>w[0]||'').slice(0,2).join('').toUpperCase();
+                const bg=avatarColor(nombre);
+                const tc=c.credito_aprobado===true, td=c.tiene_descuento===true;
+                html+=`<tr style="animation-delay:${i*.04}s" data-search="${(nombre+' '+(c.empresa||'')+' '+(c.email||'')+' '+(c.rfc||'')).toLowerCase()}">
+                    <td><div style="display:flex;align-items:center;gap:10px"><div class="client-avatar" style="background:${bg}">${init}</div><div><strong style="color:var(--orbis-blue)">${nombre}</strong><br><span style="font-size:12px;color:var(--text-muted)">${c.email||''}</span></div></div></td>
+                    <td><strong>${c.empresa||'Particular'}</strong><br>${c.rfc?`<code>${c.rfc}</code>`:'<span style="font-size:12px;color:#cbd5e1">Sin RFC</span>'}</td>
+                    <td>${c.carrito?.length>0?`<span class="badge badge-cart-active">🛒 ${c.carrito.length} en carrito</span>`:'<span class="badge badge-cart-empty">Sin actividad</span>'}</td>
+                    <td style="width:220px">
+                        <div class="toggle-container">
+                            <label class="switch"><input type="checkbox" ${tc?'checked':''} onchange="toggleCredito('${c.id}',this)"><span class="slider"></span></label>
+                            <span id="label-credito-${c.id}" class="toggle-label ${tc?'active':''}">${tc?'ACTIVO':'INACTIVO'}</span>
+                        </div>
+                        <div id="panel-credito-${c.id}" class="config-panel ${tc?'show':''}">
+                            <div class="config-input-group">
+                                <input type="number" id="credito-val-${c.id}" placeholder="0" min="1" value="${c.credito_duracion||''}">
+                                <select id="credito-tipo-${c.id}"><option value="dias" ${c.credito_tipo_duracion==='dias'?'selected':''}>Días</option><option value="meses" ${c.credito_tipo_duracion==='meses'?'selected':''}>Meses</option></select>
+                            </div>
+                            <button id="btn-credito-${c.id}" class="btn-save" onclick="guardarPlazoCredito('${c.id}')">💾 Guardar Plazo</button>
+                        </div>
+                    </td>
+                    <td style="width:200px">
+                        <div class="toggle-container">
+                            <label class="switch"><input type="checkbox" ${td?'checked':''} onchange="toggleDescuento('${c.id}',this)"><span class="slider"></span></label>
+                            <span id="label-desc-${c.id}" class="toggle-label ${td?'active':''}">${td?'APLICADO':'SIN DESCUENTO'}</span>
+                        </div>
+                        <div id="panel-desc-${c.id}" class="config-panel ${td?'show':''}">
+                            <div class="config-input-group">
+                                <input type="number" id="desc-val-${c.id}" placeholder="0" min="1" max="100" value="${c.porcentaje_descuento||''}">
+                                <span>% Off</span>
+                            </div>
+                            <button id="btn-desc-${c.id}" class="btn-save" onclick="guardarPorcentajeDescuento('${c.id}')">💾 Guardar %</button>
+                        </div>
+                    </td>
+                </tr>`;
             });
-            btn.innerText = "¡Guardado!";
-            btn.style.backgroundColor = "var(--success-text)";
-            setTimeout(() => { btn.innerText = "Guardar Plazo"; btn.style.backgroundColor = "var(--orbis-blue)"; }, 2000);
-        } catch (error) {
-            alert("Error al guardar plazo.");
-            btn.innerText = "Guardar Plazo";
-        }
-    };
-
-    // ==========================================
-    // LÓGICA DE DESCUENTO
-    // ==========================================
-    window.toggleDescuento = async function(clienteId, checkboxElement) {
-        const panel = document.getElementById(`panel-desc-${clienteId}`);
-        const labelText = document.getElementById(`label-desc-${clienteId}`);
-        const estado = checkboxElement.checked;
-
-        checkboxElement.disabled = true;
-        try {
-            await updateDoc(doc(db, "clientes", clienteId), { tiene_descuento: estado });
-            
-            if (estado) {
-                labelText.innerText = "APLICADO";
-                labelText.classList.add("active");
-                panel.classList.add("show");
-            } else {
-                labelText.innerText = "SIN DESCUENTO";
-                labelText.classList.remove("active");
-                panel.classList.remove("show");
-            }
-        } catch (error) {
-            alert("Error al actualizar estado.");
-            checkboxElement.checked = !estado;
-        } finally {
-            checkboxElement.disabled = false;
-        }
-    };
-
-    window.guardarPorcentajeDescuento = async function(clienteId) {
-        const valorInput = document.getElementById(`desc-val-${clienteId}`).value;
-        const btn = document.getElementById(`btn-desc-${clienteId}`);
-        const porcentaje = parseInt(valorInput);
-
-        if (!porcentaje || porcentaje < 1 || porcentaje > 100) {
-            alert("El descuento debe ser un valor entre 1 y 100.");
-            return;
-        }
-
-        btn.innerText = "Guardando...";
-        try {
-            await updateDoc(doc(db, "clientes", clienteId), {
-                porcentaje_descuento: porcentaje
-            });
-            btn.innerText = "¡Guardado!";
-            btn.style.backgroundColor = "var(--success-text)";
-            setTimeout(() => { btn.innerText = "Guardar %"; btn.style.backgroundColor = "var(--orbis-blue)"; }, 2000);
-        } catch (error) {
-            alert("Error al guardar descuento.");
-            btn.innerText = "Guardar %";
-        }
-    };
-
-    // ==========================================
-    // RENDERIZADO DE TABLA
-    // ==========================================
-    window.cargarClientes = async function() {
-        clientListDiv.innerHTML = '<p style="padding: 20px;">↻ Descargando registros...</p>';
-        try {
-            const querySnapshot = await getDocs(collection(db, "clientes"));
-            if (querySnapshot.empty) {
-                clientListDiv.innerHTML = '<p style="padding: 20px;">No hay clientes registrados.</p>';
-                return;
-            }
-
-            let tableHTML = `
-                <div class="table-responsive">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Cliente</th>
-                                <th>Empresa</th>
-                                <th>Estado</th>
-                                <th>Línea de Crédito</th>
-                                <th>Descuento B2B</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            querySnapshot.forEach((docSnap) => {
-                const cliente = docSnap.data();
-                const clienteId = docSnap.id; 
-                const nombreCompleto = `${cliente.nombre || ''} ${cliente.apellido || ''}`.trim() || 'Desconocido';
-                
-                // Estados Iniciales - Crédito
-                const tieneCredito = cliente.credito_aprobado === true;
-                const credPanelClass = tieneCredito ? "show" : "";
-                const credLabelClass = tieneCredito ? "active" : "";
-                const credLabelText = tieneCredito ? "ACTIVO" : "INACTIVO";
-                
-                // Estados Iniciales - Descuento
-                const tieneDescuento = cliente.tiene_descuento === true;
-                const descPanelClass = tieneDescuento ? "show" : "";
-                const descLabelClass = tieneDescuento ? "active" : "";
-                const descLabelText = tieneDescuento ? "APLICADO" : "SIN DESCUENTO";
-
-                tableHTML += `
-                    <tr>
-                        <td>
-                            <strong style="color: var(--orbis-blue);">${nombreCompleto}</strong><br>
-                            <span style="font-size: 12px; color: var(--text-muted);">${cliente.email || ''}</span>
-                        </td>
-                        <td>
-                            <strong>${cliente.empresa || 'Particular'}</strong><br>
-                            ${cliente.rfc ? `<code>${cliente.rfc}</code>` : ''}
-                        </td>
-                        <td>
-                            ${cliente.carrito?.length > 0 
-                                ? `<span class="badge badge-cart-active">${cliente.carrito.length} en carrito</span>` 
-                                : `<span class="badge badge-cart-empty">Sin compras</span>`}
-                        </td>
-                        
-                        <td style="width: 220px;">
-                            <div class="toggle-container">
-                                <label class="switch">
-                                    <input type="checkbox" ${tieneCredito ? "checked" : ""} onchange="toggleCredito('${clienteId}', this)">
-                                    <span class="slider"></span>
-                                </label>
-                                <span id="label-credito-${clienteId}" class="toggle-label ${credLabelClass}">${credLabelText}</span>
-                            </div>
-                            
-                            <div id="panel-credito-${clienteId}" class="config-panel ${credPanelClass}">
-                                <div class="config-input-group">
-                                    <input type="number" id="credito-val-${clienteId}" placeholder="0" min="1" value="${cliente.credito_duracion || ''}">
-                                    <select id="credito-tipo-${clienteId}">
-                                        <option value="dias" ${cliente.credito_tipo_duracion === 'dias' ? 'selected' : ''}>Días</option>
-                                        <option value="meses" ${cliente.credito_tipo_duracion === 'meses' ? 'selected' : ''}>Meses</option>
-                                    </select>
-                                </div>
-                                <button id="btn-credito-${clienteId}" class="btn-save" onclick="guardarPlazoCredito('${clienteId}')">Guardar Plazo</button>
-                            </div>
-                        </td>
-
-                        <td style="width: 200px;">
-                            <div class="toggle-container">
-                                <label class="switch">
-                                    <input type="checkbox" ${tieneDescuento ? "checked" : ""} onchange="toggleDescuento('${clienteId}', this)">
-                                    <span class="slider"></span>
-                                </label>
-                                <span id="label-desc-${clienteId}" class="toggle-label ${descLabelClass}">${descLabelText}</span>
-                            </div>
-                            
-                            <div id="panel-desc-${clienteId}" class="config-panel ${descPanelClass}">
-                                <div class="config-input-group">
-                                    <input type="number" id="desc-val-${clienteId}" placeholder="0" min="1" max="100" value="${cliente.porcentaje_descuento || ''}">
-                                    <span>% Off</span>
-                                </div>
-                                <button id="btn-desc-${clienteId}" class="btn-save" onclick="guardarPorcentajeDescuento('${clienteId}')">Guardar %</button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            });
-
-            tableHTML += `</tbody></table></div>`;
-            clientListDiv.innerHTML = tableHTML;
-        } catch (error) {
-            clientListDiv.innerHTML = `<p style="color:var(--danger)">Error: ${error.message}</p>`;
+            html+=`</tbody></table></div>`;
+            $('client-list').innerHTML=html;
+            _rows=[];
+            document.querySelectorAll('#clientes-tbody tr').forEach(tr=>_rows.push({el:tr,text:tr.dataset.search||''}));
+            const sq=$('search-input'); if(sq&&sq.value) filtrarClientes(sq.value);
+            setTimeout(addRipple,100);
+            showToast(`${all.length} cliente${all.length!==1?'s':''} cargado${all.length!==1?'s':''}  ✓`,'success',2500);
+        } catch(err) {
+            $('client-list').innerHTML=`<div style="padding:30px;text-align:center"><div style="font-size:40px;margin-bottom:10px">⚠️</div><p style="color:var(--danger);font-weight:600">Error al cargar</p><code style="font-size:12px">${err.message}</code><br><button class="btn-primary" style="width:auto;margin-top:15px" onclick="cargarClientes()">↻ Reintentar</button></div>`;
+            showToast('Error de conexión con Firestore','error');
         }
     }
 </script>
-
 </body>
 </html>
