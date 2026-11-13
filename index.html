@@ -870,13 +870,31 @@ function passTemporal() {
   if (!/\d/.test(s)) s = s.slice(0, 3) + "23456789"[r[0] % 8] + s.slice(4);   // siempre lleva al menos un número
   return `Orbis-${s.slice(0, 4)}-${s.slice(4)}`;
 }
+// Firebase a veces responde 503 ("service unavailable") o corta la red: se reintenta.
+// Si un intento anterior sí alcanzó a crear la cuenta, se entra con la misma contraseña temporal.
+const ERR_TRANSITORIOS = ["auth/the-service-is-currently-unavailable", "auth/network-request-failed", "auth/internal-error", "auth/timeout"];
 async function crearCuentaAcceso(email, pass) {
-  try { const cred = await createUserWithEmailAndPassword(authAltas, email, pass); return cred.user.uid; }
-  finally { signOut(authAltas).catch(() => {}); }
+  let huboTransitorio = false;
+  try {
+    for (let i = 0; i < 4; i++) {
+      try { const cred = await createUserWithEmailAndPassword(authAltas, email, pass); return cred.user.uid; }
+      catch (e) {
+        if (e?.code === "auth/email-already-in-use" && huboTransitorio) {
+          try { const c = await signInWithEmailAndPassword(authAltas, email, pass); return c.user.uid; } catch (_) { throw e; }
+        }
+        if (!ERR_TRANSITORIOS.includes(e?.code) || i === 3) throw e;
+        huboTransitorio = true;
+        console.warn("[alta] Firebase no respondió, reintento", i + 1, e.code);
+        await new Promise(r => setTimeout(r, 1200 * (i + 1)));
+      }
+    }
+  } finally { signOut(authAltas).catch(() => {}); }
 }
 const errAlta = e => e?.code === "auth/email-already-in-use" ? "Ese correo ya tiene cuenta de acceso en la tienda, pero sin perfil de cliente. Pídele que entre una vez a la tienda (o use “¿Olvidaste tu contraseña?”) y luego vincúlalo."
   : e?.code === "auth/invalid-email" ? "El correo no es válido."
-  : e?.code === "auth/operation-not-allowed" ? "Activa el acceso con correo y contraseña en Firebase → Authentication."
+  : e?.code === "auth/operation-not-allowed" || e?.code === "auth/admin-restricted-operation" ? "Activa el acceso con correo y contraseña (y permite crear cuentas) en Firebase → Authentication."
+  : e?.code === "auth/too-many-requests" ? "Firebase bloqueó temporalmente la creación de cuentas por muchos intentos. Espera unos minutos."
+  : ERR_TRANSITORIOS.includes(e?.code) ? "El servicio de cuentas de Firebase no respondió (error 503) después de varios intentos. No se creó nada: inténtalo de nuevo en unos minutos. Si sigue igual, revisa Firebase → Authentication → Configuración → Funciones de bloqueo."
   : fbErr(e);
 
 function msgCredenciales(a) {
