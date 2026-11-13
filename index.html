@@ -857,7 +857,7 @@ const rolChip = c => `<span class="chip ${rolDe(c) === "encargado" ? "a" : rolDe
 const areasDe = e => [...new Set((Array.isArray(e?.areas) ? e.areas : []).map(x => String(x).trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
 const optRoles = sel => Object.entries(ROLES).map(([k, r]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${r.ico} ${r.txt}</option>`).join("");
 const optAreas = (e, sel) => `<option value="">Sin área</option>` + [...new Set([...areasDe(e), ...(sel ? [sel] : [])])].map(a => `<option ${a === sel ? "selected" : ""}>${esc(a)}</option>`).join("");
-const URL_TIENDA = "https://www.orbiscorp.com.mx/";   // ← cambia si la tienda vive en otra dirección
+const URL_TIENDA = "https://shop.orbiscorp.com.mx/";
 
 /* Instancia secundaria en memoria: crea cuentas sin cerrar la sesión del admin */
 const appAltas = initializeApp(firebaseConfig, "altas");
