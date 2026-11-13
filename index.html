@@ -290,6 +290,25 @@ button.kpi:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(10,37,64,
 .lead.sol.rechazada,.lead.sol.revocada{border-left-color:var(--border2);opacity:.85}
 .lead.sol .who{padding:8px 10px;background:var(--surface2);border-radius:8px}
 .sug-list button:disabled{opacity:.5;cursor:default}
+/* ── alta de empresa, equipo por áreas y credenciales ── */
+.fsec{margin:14px 0 8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.fsec:first-child{margin-top:0}
+.chip.area{background:#fff;border:1px solid var(--border2);color:var(--navy);padding:3px 4px 3px 10px}
+.chip.area button{border:0;background:none;width:20px;height:20px;border-radius:50%;color:var(--text3);font-size:15px;line-height:1;cursor:pointer}
+.chip.area button:hover{background:var(--red-bg);color:var(--red)}
+.li.miembro{flex-wrap:wrap;gap:8px}
+.li.miembro select{min-height:36px;padding:0 8px;border:1px solid var(--border2);border-radius:var(--r-sm);background:#fff;font-size:13px;max-width:160px}
+@media(max-width:640px){.li.miembro .who{flex:1 1 calc(100% - 100px)!important;order:0}.li.miembro .icon-btn{order:1}.li.miembro select{order:2;flex:1 1 40%;max-width:none}}
+.cred{display:flex;flex-direction:column;gap:8px}
+.cred>div{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface2)}
+.cred small{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3)}
+.cred b{font-size:15px;color:var(--navy);word-break:break-all}
+.cred b.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:17px;letter-spacing:.06em}
+.cred .icon-btn{grid-column:2;grid-row:1/span 2}
+.roles-info summary{cursor:pointer;font-weight:600;color:var(--blue)}
+.roles-info .tbl{margin-top:10px}
+.roles-info td:not(:first-child),.roles-info th:not(:first-child){text-align:center}
+.roles-info td:not(:first-child){color:var(--green);font-weight:800}
 </style>
 </head>
 <body>
@@ -352,7 +371,7 @@ button.kpi:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(10,37,64,
     <!-- EMPRESAS -->
     <section class="view" data-v="empresas">
       <div class="tool">
-        <label class="search"><span>🔍</span><input type="search" id="eQ" placeholder="Buscar empresa o dueño"></label>
+        <label class="search"><span>🔍</span><input type="search" id="eQ" placeholder="Buscar empresa o encargado"></label>
         <select id="eF" aria-label="Estado"><option value="">Todas</option><option value="on">Activas</option><option value="off">Inactivas</option></select>
         <button class="btn" id="eNew">＋ Nueva empresa</button>
       </div>
@@ -365,6 +384,7 @@ button.kpi:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(10,37,64,
       <div class="tool">
         <label class="search"><span>🔍</span><input type="search" id="kQ" placeholder="Producto o SKU"></label>
         <select id="kE" aria-label="Empresa"><option value="">Todas las empresas</option></select>
+        <button class="btn" id="kImpG">📥 Importar Excel</button>
         <button class="btn ghost" id="kCsv">⬇ CSV</button>
       </div>
       <div class="mini" id="kKpis"></div>
@@ -415,7 +435,7 @@ button.kpi:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(10,37,64,
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, initializeAuth, inMemoryPersistence, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   getFirestore, collection, doc, onSnapshot, getDocs, getDoc, addDoc, setDoc, updateDoc, deleteDoc,
   writeBatch, deleteField, serverTimestamp
@@ -510,7 +530,8 @@ const plazoTxt = c => c.credito_aprobado === true ? (c.credito_duracion ? `${c.c
 const cotsDe = uid => S.cots.filter(q => q.uid === uid);
 const miembros = eid => S.clientes.filter(c => c.empresaId === eid);
 const consigDe = eid => S.consig.filter(k => k.empresaId === eid);
-const ownerDe = e => cliById(e.ownerUid) || miembros(e.id).find(c => c.rolEmpresa === "owner") || null;
+// Encargado principal de la empresa (los datos viejos usan ownerUid / rol 'owner')
+const ownerDe = e => cliById(e.encargadoUid) || cliById(e.ownerUid) || miembros(e.id).find(c => c.rolEmpresa === "encargado" || c.rolEmpresa === "owner") || null;
 const empNombre = e => e?.nombreEmpresa || "Empresa";
 const incompleto = c => !c.nombre || !c.telefono || !c.rfc;
 
@@ -579,6 +600,7 @@ function go(v) {
 let raf = 0;
 function schedule() { cancelAnimationFrame(raf); raf = requestAnimationFrame(render); }
 function render() {
+  programarSyncCond();
   const nuevos = S.leads.filter(l => l.estado !== "atendido").length;
   const pend = S.solic.filter(x => x.estado === "pendiente").length;
   $$('[data-nb="leads"]').forEach(b => { b.textContent = nuevos; b.classList.toggle("on", nuevos > 0); });
@@ -664,7 +686,7 @@ function rClientes() {
     const e = empById(c.empresaId), d = descOf(c);
     return `<tr data-cli="${esc(c.id)}">
       <td class="first"><div class="who">${avatar(nombreDe(c))}<div class="wt"><b>${esc(nombreDe(c))}</b><small>${esc(c.email || "")}${c.telefono ? " · " + esc(c.telefono) : ""}</small></div></div></td>
-      <td data-l="Empresa">${e ? `<span class="chip b">🏢 ${esc(empNombre(e))}${c.rolEmpresa === "owner" ? " · 👑" : ""}</span>` : `<span>${esc(c.empresa || "Particular")}</span>`}${c.rfc ? ` <code>${esc(c.rfc)}</code>` : ""}</td>
+      <td data-l="Empresa">${e ? `<span class="chip b">🏢 ${esc(empNombre(e))} · ${ROLES[rolDe(c)].ico}</span>` : `<span>${esc(c.empresa || "Particular")}</span>`}${c.rfc ? ` <code>${esc(c.rfc)}</code>` : ""}</td>
       <td data-l="Condiciones"><div class="chips">${d ? `<span class="chip a">🏷️ ${d}%</span>` : ""}${c.credito_aprobado === true ? `<span class="chip g">💳 ${esc(plazoTxt(c))}</span>` : ""}${!d && c.credito_aprobado !== true ? '<span class="chip">Lista · contado</span>' : ""}</div></td>
       <td data-l="Carrito" class="num">${cartOf(c).length ? `<span class="chip v">🛒 ${cartQty(c)} · ${moneyK(cartVal(c))}</span>` : '<span class="muted">—</span>'}</td>
       <td data-l="Cotizado" class="num">${cotT[c.id] ? money(cotT[c.id]) : '<span class="muted">—</span>'}</td>
@@ -705,7 +727,7 @@ function drawCliente(D) {
   if (!c) { $("#dBody").innerHTML = `<div class="empty">Este cliente ya no existe.</div>`; return; }
   const e = empById(c.empresaId), n = nombreDe(c);
   setDav(n, "50%");
-  $("#dTitle").textContent = n; $("#dSub").textContent = [c.email, e ? `${empNombre(e)} · ${c.rolEmpresa === "owner" ? "Dueño" : "Empleado"}` : c.empresa].filter(Boolean).join(" · ");
+  $("#dTitle").textContent = n; $("#dSub").textContent = [c.email, e ? `${empNombre(e)} · ${ROLES[rolDe(c)].txt}${c.area ? " · " + c.area : ""}` : c.empresa].filter(Boolean).join(" · ");
   const cots = cotsDe(c.id);
   const solC = S.solic.filter(x => x.uid === c.id), accC = S.accesos.filter(x => x.uid === c.id), pendC = solC.filter(x => x.estado === "pendiente").length;
   tabs([["info", "Ficha"], ["cond", "Condiciones"], ["emp", "Empresa"], ["precios", `Precios${pendC ? ` (${pendC} ⏳)` : accC.length ? ` (${accC.length})` : ""}`], ["cart", `Carrito${cartOf(c).length ? ` (${cartQty(c)})` : ""}`], ["cots", `Cotizaciones${cots.length ? ` (${cots.length})` : ""}`]], D.tab);
@@ -741,20 +763,25 @@ function drawCliente(D) {
 
   if (D.tab === "emp") {
     if (e) {
-      const own = c.rolEmpresa === "owner";
-      B.innerHTML = `<div class="card"><h3>🏢 ${esc(empNombre(e))}</h3><dl class="kv"><dt>Rol</dt><dd>${own ? "👑 Dueño" : "👤 Empleado"}</dd><dt>Equipo</dt><dd>${miembros(e.id).length} cuenta(s)</dd><dt>Consignación</dt><dd>${consigDe(e.id).length} producto(s)</dd></dl>
-        <div class="row" style="margin-top:14px"><button class="btn ghost sm" data-emp="${esc(e.id)}">Abrir empresa</button>${own ? "" : `<button class="btn ghost sm" id="mkOwner">👑 Hacer dueño</button>`}<button class="btn danger sm" id="unlink">Quitar de la empresa</button></div></div>`;
-      $("#mkOwner") && ($("#mkOwner").onclick = () => hacerDueno(e.id, c.id));
+      B.innerHTML = `<div class="card"><h3>🏢 ${esc(empNombre(e))}</h3><dl class="kv"><dt>Equipo</dt><dd>${miembros(e.id).length} persona(s)</dd><dt>Consignación</dt><dd>${consigDe(e.id).length} producto(s)</dd><dt>Primer acceso</dt><dd>${c.debeCambiarPassword ? '<span class="chip a">⏳ Aún no crea su contraseña</span>' : '<span class="chip g">✓ Ya entró</span>'}</dd></dl>
+        <div class="row" style="margin-top:12px"><label class="fld" style="margin:0;flex:1 1 160px"><span>Rol</span><select id="feRol">${optRoles(rolDe(c))}</select></label><label class="fld" style="margin:0;flex:1 1 160px"><span>Área</span><select id="feArea">${optAreas(e, c.area || "")}</select></label></div>
+        <p class="small muted" style="margin:8px 0 0">${esc(ROLES[rolDe(c)].desc)}.</p>
+        <div class="row" style="margin-top:14px"><button class="btn ghost sm" data-emp="${esc(e.id)}">Abrir empresa</button><button class="btn ghost sm" id="feRst">✉ Enviar correo de acceso</button><button class="btn danger sm" id="unlink">Quitar de la empresa</button></div></div>`;
+      $("#feRol").onchange = ev => { ev.target.blur(); cambiarRol(c, ev.target.value); };
+      $("#feArea").onchange = ev => { ev.target.blur(); cambiarArea(c, ev.target.value); };
+      $("#feRst").onclick = () => reenviarAcceso(c);
       $("#unlink").onclick = () => desvincular(c.id);
       bindOpeners(B);
     } else {
       const opts = S.empresas.filter(x => x.activo !== false).map(x => [x.id, empNombre(x)]);
       B.innerHTML = `<div class="card"><h3>🏢 Vincular a una empresa</h3>${opts.length ? `
         <label class="fld"><span>Empresa</span><select id="lkE">${opts.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("")}</select></label>
-        <label class="fld"><span>Rol</span><select id="lkR"><option value="empleado">👤 Empleado</option><option value="owner">👑 Dueño</option></select></label>
+        <div class="row"><label class="fld" style="flex:1 1 160px"><span>Rol</span><select id="lkR">${optRoles("colaborador")}</select></label><label class="fld" style="flex:1 1 160px"><span>Área</span><select id="lkA"></select></label></div>
         <button class="btn block" id="lkGo">Vincular</button>` : `<p class="muted">No hay empresas activas.</p>`}
-        <button class="btn ghost block" id="lkNew" style="margin-top:10px">＋ Crear empresa con este cliente como dueño</button></div>`;
-      $("#lkGo") && ($("#lkGo").onclick = () => vincular(c.id, $("#lkE").value, $("#lkR").value));
+        <button class="btn ghost block" id="lkNew" style="margin-top:10px">＋ Dar de alta una empresa con este cliente como Encargado</button></div>`;
+      const pintaAreas = () => { const x = empById($("#lkE")?.value); if ($("#lkA")) $("#lkA").innerHTML = optAreas(x, ""); };
+      if ($("#lkE")) { $("#lkE").onchange = pintaAreas; pintaAreas(); }
+      $("#lkGo") && ($("#lkGo").onclick = () => vincular(c.id, $("#lkE").value, $("#lkR").value, $("#lkA").value));
       $("#lkNew").onclick = () => nuevaEmpresa(c.email);
     }
   }
@@ -776,7 +803,7 @@ function drawCliente(D) {
   }
 }
 
-async function saveCond(ids, v, btn) {
+async function saveCond(ids, v, btn, eid = null) {
   const pct = num(v.pct), dur = parseInt(v.dur, 10) || 0;
   if (v.desc && (pct <= 0 || pct > 100)) { toast("El descuento debe ser entre 1 y 100 %", "err"); return; }
   if (v.cred && dur <= 0) { toast("Indica el plazo del crédito", "err"); return; }
@@ -785,37 +812,288 @@ async function saveCond(ids, v, btn) {
   if (v.cred) { data.credito_duracion = dur; data.credito_tipo_duracion = v.tipo; }
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Guardando…'; }
   try {
+    if (eid) await updateDoc(doc(db, "empresas", eid), { condiciones: data, actualizadoEn: serverTimestamp() });
     for (let i = 0; i < ids.length; i += 400) { const b = writeBatch(db); ids.slice(i, i + 400).forEach(id => b.update(doc(db, "clientes", id), data)); await b.commit(); }
-    toast(ids.length > 1 ? `Condiciones aplicadas a ${ids.length} cuentas` : "Condiciones guardadas", "ok");
+    toast(eid ? `Condiciones guardadas para la empresa${ids.length ? ` y ${ids.length} cuenta(s)` : ""}` : ids.length > 1 ? `Condiciones aplicadas a ${ids.length} cuentas` : "Condiciones guardadas", "ok");
   } catch (e) { toast(fbErr(e), "err"); }
-  if (btn) { btn.disabled = false; btn.textContent = ids.length > 1 ? `Aplicar a ${ids.length} cuentas` : "💾 Guardar condiciones"; }
+  if (btn) { btn.disabled = false; btn.textContent = eid ? "Guardar para toda la empresa" : ids.length > 1 ? `Aplicar a ${ids.length} cuentas` : "💾 Guardar condiciones"; }
   if (S.drawer) { S.drawer._rendered = false; document.activeElement?.blur(); renderDrawer(); }
 }
 
 /* ── vínculos empresa ── */
-async function vincular(cid, eid, rol) {
+async function vincular(cid, eid, rol = "colaborador", area = "") {
   const e = empById(eid), c = cliById(cid); if (!e || !c) return;
   const b = writeBatch(db);
-  b.update(doc(db, "clientes", cid), { empresaId: eid, rolEmpresa: rol });
-  if (rol === "owner") {
-    const prev = ownerDe(e);
-    if (prev && prev.id !== cid) b.update(doc(db, "clientes", prev.id), { rolEmpresa: "empleado" });
-    b.update(doc(db, "empresas", eid), { ownerUid: cid });
-  }
-  try { await b.commit(); toast(`${nombreDe(c)} vinculado a ${empNombre(e)}`, "ok"); } catch (err) { toast(fbErr(err), "err"); }
+  const datos = { empresaId: eid, empresa: empNombre(e), rolEmpresa: rol, area, actualizadoEn: serverTimestamp(), ...(e.condiciones ? condObjetivo(e.condiciones) : {}) };
+  b.update(doc(db, "clientes", cid), datos);
+  if (rol === "encargado" && !cliById(e.encargadoUid)) b.update(doc(db, "empresas", eid), { encargadoUid: cid, ownerUid: cid });
+  try { await b.commit(); toast(`${nombreDe(c)} vinculado a ${empNombre(e)} como ${ROLES[rol].txt}`, "ok"); } catch (err) { toast(fbErr(err), "err"); }
 }
 async function desvincular(cid) {
   const c = cliById(cid), e = empById(c?.empresaId); if (!c) return;
-  if (!await ask({ title: "Quitar de la empresa", sub: `${nombreDe(c)} dejará de ver la consignación y el equipo de ${empNombre(e)}. Sus condiciones comerciales se conservan.`, ok: "Quitar", danger: true })) return;
+  if (!await ask({ title: "Quitar de la empresa", sub: `${nombreDe(c)} dejará de comprar con las condiciones de ${empNombre(e)} y de ver su información. Su cuenta en la tienda se conserva.`, ok: "Quitar", danger: true })) return;
   const b = writeBatch(db);
-  b.update(doc(db, "clientes", cid), { empresaId: deleteField(), rolEmpresa: deleteField() });
-  if (e && e.ownerUid === cid) b.update(doc(db, "empresas", e.id), { ownerUid: deleteField() });
-  try { await b.commit(); toast("Cliente desvinculado", "ok"); } catch (err) { toast(fbErr(err), "err"); }
+  const quitar = { empresaId: deleteField(), rolEmpresa: deleteField(), area: deleteField() };
+  if (e?.condiciones) CAMPOS_COND.forEach(k => quitar[k] = deleteField());
+  b.update(doc(db, "clientes", cid), quitar);
+  if (e && (e.encargadoUid === cid || e.ownerUid === cid)) {
+    const otro = miembros(e.id).find(x => x.id !== cid && rolDe(x) === "encargado");
+    b.update(doc(db, "empresas", e.id), otro ? { encargadoUid: otro.id, ownerUid: otro.id } : { encargadoUid: deleteField(), ownerUid: deleteField() });
+  }
+  try { await b.commit(); toast("Quitado de la empresa", "ok"); } catch (err) { toast(fbErr(err), "err"); }
 }
-async function hacerDueno(eid, cid) {
-  const e = empById(eid), c = cliById(cid); if (!e || !c) return;
-  if (!await ask({ title: "Cambiar dueño", sub: `${nombreDe(c)} será el dueño de ${empNombre(e)} y podrá registrar empleados. El dueño actual pasa a empleado.`, ok: "Hacer dueño" })) return;
-  vincular(cid, eid, "owner");
+
+/* ═════════ ROLES, ALTAS Y ACCESOS ═════════
+   Roles de la cuenta de empresa: encargado, supervisor, colaborador.
+   Los valores viejos 'owner' y 'empleado' se leen como encargado y colaborador. */
+const ROLES = {
+  encargado:   { ico: "⭐", txt: "Encargado",   desc: "Da accesos a su equipo, asigna áreas y roles" },
+  supervisor:  { ico: "🧭", txt: "Supervisor",  desc: "Ve el equipo y la consignación; no da accesos" },
+  colaborador: { ico: "👤", txt: "Colaborador", desc: "Compra con las condiciones de la empresa" }
+};
+const rolDe = c => c?.rolEmpresa === "owner" ? "encargado" : c?.rolEmpresa === "empleado" ? "colaborador" : ROLES[c?.rolEmpresa] ? c.rolEmpresa : "colaborador";
+const rolLbl = c => `${ROLES[rolDe(c)].ico} ${ROLES[rolDe(c)].txt}`;
+const rolChip = c => `<span class="chip ${rolDe(c) === "encargado" ? "a" : rolDe(c) === "supervisor" ? "b" : ""}">${rolLbl(c)}</span>`;
+const areasDe = e => [...new Set((Array.isArray(e?.areas) ? e.areas : []).map(x => String(x).trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es"));
+const optRoles = sel => Object.entries(ROLES).map(([k, r]) => `<option value="${k}" ${k === sel ? "selected" : ""}>${r.ico} ${r.txt}</option>`).join("");
+const optAreas = (e, sel) => `<option value="">Sin área</option>` + [...new Set([...areasDe(e), ...(sel ? [sel] : [])])].map(a => `<option ${a === sel ? "selected" : ""}>${esc(a)}</option>`).join("");
+const URL_TIENDA = "https://www.orbiscorp.com.mx/";   // ← cambia si la tienda vive en otra dirección
+
+/* Instancia secundaria en memoria: crea cuentas sin cerrar la sesión del admin */
+const appAltas = initializeApp(firebaseConfig, "altas");
+const authAltas = initializeAuth(appAltas, { persistence: inMemoryPersistence });
+
+function passTemporal() {
+  const A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", r = new Uint32Array(8);
+  crypto.getRandomValues(r);
+  let s = [...r].map(n => A[n % A.length]).join("");
+  if (!/\d/.test(s)) s = s.slice(0, 3) + "23456789"[r[0] % 8] + s.slice(4);   // siempre lleva al menos un número
+  return `Orbis-${s.slice(0, 4)}-${s.slice(4)}`;
+}
+async function crearCuentaAcceso(email, pass) {
+  try { const cred = await createUserWithEmailAndPassword(authAltas, email, pass); return cred.user.uid; }
+  finally { signOut(authAltas).catch(() => {}); }
+}
+const errAlta = e => e?.code === "auth/email-already-in-use" ? "Ese correo ya tiene cuenta de acceso en la tienda, pero sin perfil de cliente. Pídele que entre una vez a la tienda (o use “¿Olvidaste tu contraseña?”) y luego vincúlalo."
+  : e?.code === "auth/invalid-email" ? "El correo no es válido."
+  : e?.code === "auth/operation-not-allowed" ? "Activa el acceso con correo y contraseña en Firebase → Authentication."
+  : fbErr(e);
+
+function msgCredenciales(a) {
+  return `Hola ${String(a.nombre || "").split(" ")[0]}, te damos la bienvenida a la tienda en línea de OrbisCORP.\n\n${a.rol === "Encargado" ? `Eres el Encargado de la cuenta de ${a.empresa}: desde “Mi cuenta de empresa → Equipo” puedes dar acceso a tu equipo y asignar áreas y roles.` : `Tienes acceso a la cuenta de ${a.empresa} como ${a.rol}${a.area ? ` (${a.area})` : ""}.`}\n\nEntra en: ${URL_TIENDA}\nCorreo: ${a.email}\nContraseña temporal: ${a.pass}\n\nAl iniciar sesión te pedirá crear tu propia contraseña.`;
+}
+async function mostrarCredenciales(a) {
+  const txt = msgCredenciales(a);
+  const copiar = async t => { try { await navigator.clipboard.writeText(t); toast("Copiado", "ok", 1500); } catch (_) { toast("No se pudo copiar; selecciónalo a mano", "err"); } };
+  const p = ask({ title: "✓ Acceso creado", sub: `${a.nombre} · ${a.rol} de ${a.empresa}`, ok: "Listo", wide: true,
+    html: `<div class="cred">
+        <div><small>Correo</small><b>${esc(a.email)}</b><button type="button" class="icon-btn" data-cp="email" aria-label="Copiar correo">📋</button></div>
+        <div><small>Contraseña temporal</small><b class="mono">${esc(a.pass)}</b><button type="button" class="icon-btn" data-cp="pass" aria-label="Copiar contraseña">📋</button></div>
+      </div>
+      <p class="small" style="color:var(--amber);margin:12px 0">⚠ Compártela ahora: no se vuelve a mostrar. Al entrar por primera vez, la tienda le pedirá crear su propia contraseña.</p>
+      <label class="fld"><span>Mensaje para enviar</span><textarea id="credMsg" rows="7" readonly>${esc(txt)}</textarea></label>
+      <div class="row"><button type="button" class="btn" data-cp="todo">📋 Copiar mensaje</button>
+        ${a.telefono ? `<a class="btn wa" target="_blank" rel="noopener" href="${wa(a.telefono, txt)}">💬 WhatsApp</a>` : ""}
+        <a class="btn ghost" href="mailto:${esc(a.email)}?subject=${encodeURIComponent("Tu acceso a la tienda OrbisCORP")}&body=${encodeURIComponent(txt)}">✉ Correo</a></div>` });
+  $$("#mBody [data-cp]").forEach(b => b.onclick = () => copiar(b.dataset.cp === "email" ? a.email : b.dataset.cp === "pass" ? a.pass : txt));
+  $("#mFt #mNo")?.remove();
+  await p;
+}
+async function reenviarAcceso(c) {
+  if (!c?.email) return;
+  if (!await ask({ title: "Enviar correo de acceso", sub: `Firebase enviará a ${c.email} un enlace para crear una contraseña nueva. Sirve si perdió la temporal o la olvidó.`, ok: "Enviar" })) return;
+  try { await sendPasswordResetEmail(auth, c.email); toast(`Correo enviado a ${c.email}`, "ok", 4000); } catch (e) { toast(fbErr(e), "err"); }
+}
+
+/* ── condiciones de la empresa: se guardan en la empresa y se copian a cada cuenta ── */
+const CAMPOS_COND = ["tiene_descuento", "porcentaje_descuento", "credito_aprobado", "credito_duracion", "credito_tipo_duracion"];
+function condObjetivo(cond) {
+  const t = { tiene_descuento: cond.tiene_descuento === true, credito_aprobado: cond.credito_aprobado === true };
+  if (t.tiene_descuento) t.porcentaje_descuento = num(cond.porcentaje_descuento);
+  if (t.credito_aprobado) { t.credito_duracion = num(cond.credito_duracion); t.credito_tipo_duracion = cond.credito_tipo_duracion || "dias"; }
+  return t;
+}
+let _syncT = null, _syncando = false;
+function programarSyncCond() {
+  clearTimeout(_syncT);
+  _syncT = setTimeout(async () => {
+    if (_syncando || !S.ready.clientes || !S.ready.empresas) return;
+    const ops = [];
+    S.empresas.forEach(e => {
+      if (!e.condiciones) return;
+      const t = condObjetivo(e.condiciones);
+      miembros(e.id).forEach(c => { if (Object.entries(t).some(([k, v]) => c[k] !== v)) ops.push(b => b.update(doc(db, "clientes", c.id), t)); });
+    });
+    if (!ops.length) return;
+    _syncando = true;
+    try { await enLotes(ops); console.info(`[condiciones] ${ops.length} cuenta(s) sincronizadas con su empresa`); }
+    catch (e) { console.warn("[condiciones]", e?.code); }
+    _syncando = false;
+  }, 1500);
+}
+
+/* ── alta de empresa con su Encargado ── */
+async function nuevaEmpresa(emailPre = "") {
+  const pre = findByEmail(emailPre);
+  const prom = ask({ title: "🏢 Alta de empresa", sub: "Se crea la empresa y el acceso de su Encargado con una contraseña temporal. El Encargado da acceso a su equipo desde la tienda.", ok: "Dar de alta", wide: true,
+    html: `<p class="fsec">Empresa</p>
+      <div class="row"><label class="fld" style="flex:2 1 240px"><span>Nombre o razón social *</span><input id="ne-nom" placeholder="Aceros del Valle S.A. de C.V." autocomplete="off"></label>
+        <label class="fld" style="flex:1 1 140px"><span>RFC</span><input id="ne-rfc" placeholder="Opcional" autocomplete="off" style="text-transform:uppercase"></label></div>
+      <label class="fld"><span>Áreas (separadas por coma)</span><input id="ne-areas" placeholder="Compras, Almacén, Mantenimiento" autocomplete="off"></label>
+      <p class="fsec">Encargado de la cuenta</p>
+      <div class="row"><label class="fld" style="flex:1 1 180px"><span>Nombre(s) *</span><input id="ne-n" value="${esc(pre?.nombre || "")}" autocomplete="off"></label>
+        <label class="fld" style="flex:1 1 180px"><span>Apellido(s)</span><input id="ne-a" value="${esc(pre?.apellido || "")}" autocomplete="off"></label></div>
+      <div class="row"><label class="fld" style="flex:2 1 240px"><span>Correo *</span><input id="ne-em" type="email" value="${esc(emailPre)}" list="${emailsList()}" placeholder="encargado@empresa.com" autocomplete="off"></label>
+        <label class="fld" style="flex:1 1 150px"><span>WhatsApp</span><input id="ne-tel" type="tel" value="${esc(pre?.telefono || "")}" placeholder="771 123 4567" autocomplete="off"></label></div>
+      <label class="fld"><span>Área del Encargado</span><input id="ne-area" placeholder="Ej. Compras (opcional)" autocomplete="off"></label>
+      <p class="small" id="ne-hint" style="margin:-4px 0 10px"></p>
+      <p class="fsec">Condiciones comerciales <span class="muted">(para todo el equipo)</span></p>
+      <div class="row"><label class="fld" style="flex:1 1 140px"><span>Descuento B2B %</span><input id="ne-desc" type="number" min="0" max="100" step="0.5" placeholder="0" inputmode="decimal"></label>
+        <label class="fld" style="flex:1 1 140px"><span>Días de crédito</span><input id="ne-cred" type="number" min="0" placeholder="0 = contado" inputmode="numeric"></label></div>`,
+    validate: () => {
+      const nom = $("#ne-nom").value.trim(), em = $("#ne-em").value.trim().toLowerCase();
+      if (!nom) return "Escribe el nombre de la empresa";
+      if (S.empresas.some(e => empNombre(e).trim().toLowerCase() === nom.toLowerCase())) return "Ya existe una empresa con ese nombre";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return "Escribe un correo válido para el Encargado";
+      const c = findByEmail(em);
+      if (!c && !$("#ne-n").value.trim()) return "Escribe el nombre del Encargado";
+      if (c?.empresaId && empById(c.empresaId)) return `Ese correo ya pertenece a ${empNombre(empById(c.empresaId))}`;
+      const d = num($("#ne-desc").value); if (d < 0 || d > 100) return "El descuento debe estar entre 0 y 100";
+      return null;
+    } });
+  const hint = () => {
+    const c = findByEmail($("#ne-em").value);
+    if (c) { if (!$("#ne-n").value) $("#ne-n").value = c.nombre || ""; if (!$("#ne-a").value) $("#ne-a").value = c.apellido || ""; if (!$("#ne-tel").value) $("#ne-tel").value = c.telefono || ""; }
+    $("#ne-hint").innerHTML = c ? (c.empresaId && empById(c.empresaId) ? `<span style="color:var(--red)">⚠ Ya pertenece a ${esc(empNombre(empById(c.empresaId)))}</span>` : `<span style="color:var(--blue)">ℹ ${esc(nombreDe(c))} ya tiene cuenta: se vinculará como Encargado y conserva su contraseña.</span>`)
+      : $("#ne-em").value.includes("@") ? '<span class="muted">Se creará su acceso con una contraseña temporal.</span>' : "";
+  };
+  $("#ne-em").addEventListener("input", hint); hint();
+  if (!await prom) return;
+
+  const val = id => $(id).value.trim();
+  const nombre = val("#ne-nom"), em = val("#ne-em").toLowerCase(), areaEnc = val("#ne-area");
+  const areas = [...new Set([...val("#ne-areas").split(",").map(x => x.trim()).filter(Boolean), ...(areaEnc ? [areaEnc] : [])])];
+  const desc = num(val("#ne-desc")), dias = parseInt(val("#ne-cred"), 10) || 0;
+  const cond = { tiene_descuento: desc > 0, credito_aprobado: dias > 0 };
+  if (desc > 0) cond.porcentaje_descuento = Math.min(100, desc);
+  if (dias > 0) { cond.credito_duracion = dias; cond.credito_tipo_duracion = "dias"; }
+  const existente = findByEmail(em);
+  const eRef = doc(collection(db, "empresas"));
+  toast("Dando de alta…", "", 1500);
+  try {
+    let uid, pass = null;
+    if (existente) uid = existente.id;
+    else { pass = passTemporal(); uid = await crearCuentaAcceso(em, pass); }
+    const b = writeBatch(db);
+    b.set(eRef, { nombreEmpresa: nombre, rfc: val("#ne-rfc").toUpperCase(), areas, condiciones: cond, encargadoUid: uid, ownerUid: uid, activo: true, creadoEn: serverTimestamp() });
+    const perfil = { empresaId: eRef.id, empresa: nombre, rolEmpresa: "encargado", area: areaEnc, ...cond, actualizadoEn: serverTimestamp() };
+    if (existente) b.update(doc(db, "clientes", uid), perfil);
+    else b.set(doc(db, "clientes", uid), { uid, nombre: val("#ne-n"), apellido: val("#ne-a"), email: em, telefono: val("#ne-tel"), rol: "cliente", carrito: [], debeCambiarPassword: true, creadoPor: "consola", creadoEn: serverTimestamp(), ...perfil });
+    await b.commit();
+    toast(`Empresa "${nombre}" dada de alta ✓`, "ok");
+    if (pass) await mostrarCredenciales({ nombre: `${val("#ne-n")} ${val("#ne-a")}`.trim(), email: em, telefono: val("#ne-tel"), pass, rol: "Encargado", empresa: nombre, area: areaEnc });
+    openEmpresa(eRef.id);
+  } catch (e) { console.error("[alta empresa]", e); toast(errAlta(e), "err", 7000); }
+}
+
+/* ── dar acceso a una persona nueva desde la consola ── */
+async function darAcceso(e, areaPre = "") {
+  const prom = ask({ title: `👥 Dar acceso · ${empNombre(e)}`, sub: "Se crea su cuenta con una contraseña temporal que deberá cambiar al entrar.", ok: "Crear acceso", wide: true,
+    html: `<div class="row"><label class="fld" style="flex:1 1 180px"><span>Nombre(s) *</span><input id="da-n" autocomplete="off"></label><label class="fld" style="flex:1 1 180px"><span>Apellido(s)</span><input id="da-a" autocomplete="off"></label></div>
+      <div class="row"><label class="fld" style="flex:2 1 240px"><span>Correo *</span><input id="da-em" type="email" autocomplete="off" placeholder="persona@empresa.com"></label><label class="fld" style="flex:1 1 150px"><span>WhatsApp</span><input id="da-tel" type="tel" autocomplete="off"></label></div>
+      <div class="row"><label class="fld" style="flex:1 1 180px"><span>Rol</span><select id="da-rol">${optRoles("colaborador")}</select></label><label class="fld" style="flex:1 1 180px"><span>Área</span><select id="da-area">${optAreas(e, areaPre)}</select></label></div>
+      <div class="small muted" id="da-desc"></div>`,
+    validate: () => {
+      if (!$("#da-n").value.trim()) return "Escribe el nombre";
+      const em = $("#da-em").value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return "Escribe un correo válido";
+      if (findByEmail(em)) return "Ese correo ya tiene cuenta: usa “Vincular cliente existente”";
+      return null;
+    } });
+  const d = () => $("#da-desc").textContent = ROLES[$("#da-rol").value].desc + ".";
+  $("#da-rol").onchange = d; d();
+  if (!await prom) return;
+  const val = id => $(id).value.trim();
+  const em = val("#da-em").toLowerCase(), rol = $("#da-rol").value, area = $("#da-area").value, pass = passTemporal();
+  try {
+    const uid = await crearCuentaAcceso(em, pass);
+    const cond = e.condiciones ? condObjetivo(e.condiciones) : {};
+    await setDoc(doc(db, "clientes", uid), { uid, nombre: val("#da-n"), apellido: val("#da-a"), email: em, telefono: val("#da-tel"), empresa: empNombre(e), empresaId: e.id, rolEmpresa: rol, area, rol: "cliente", carrito: [], debeCambiarPassword: true, creadoPor: "consola", creadoEn: serverTimestamp(), ...cond });
+    if (rol === "encargado" && !e.encargadoUid) await updateDoc(doc(db, "empresas", e.id), { encargadoUid: uid, ownerUid: uid });
+    await mostrarCredenciales({ nombre: `${val("#da-n")} ${val("#da-a")}`.trim(), email: em, telefono: val("#da-tel"), pass, rol: ROLES[rol].txt, empresa: empNombre(e), area });
+  } catch (err) { console.error("[dar acceso]", err); toast(errAlta(err), "err", 7000); }
+}
+
+async function cambiarRol(c, rol) {
+  const e = empById(c.empresaId); if (!e || !ROLES[rol]) return;
+  if (rolDe(c) === "encargado" && rol !== "encargado" && miembros(e.id).filter(x => rolDe(x) === "encargado").length <= 1
+      && !await ask({ title: "Sin Encargado", sub: `${nombreDe(c)} es el único Encargado de ${empNombre(e)}. Si cambias su rol, nadie podrá dar accesos desde la tienda.`, ok: "Cambiar de todos modos", danger: true })) { if (S.drawer) { S.drawer._rendered = false; renderDrawer(); } return; }
+  const b = writeBatch(db);
+  b.update(doc(db, "clientes", c.id), { rolEmpresa: rol, actualizadoEn: serverTimestamp() });
+  if (rol === "encargado" && !cliById(e.encargadoUid)) b.update(doc(db, "empresas", e.id), { encargadoUid: c.id, ownerUid: c.id });
+  if (rol !== "encargado" && (e.encargadoUid === c.id || e.ownerUid === c.id)) {
+    const otro = miembros(e.id).find(x => x.id !== c.id && rolDe(x) === "encargado");
+    b.update(doc(db, "empresas", e.id), otro ? { encargadoUid: otro.id, ownerUid: otro.id } : { encargadoUid: deleteField(), ownerUid: deleteField() });
+  }
+  try { await b.commit(); toast(`${nombreDe(c)} ahora es ${ROLES[rol].txt}`, "ok"); } catch (err) { toast(fbErr(err), "err"); }
+}
+async function cambiarArea(c, area) {
+  try { await updateDoc(doc(db, "clientes", c.id), { area, actualizadoEn: serverTimestamp() }); toast(area ? `Área: ${area}` : "Área quitada", "ok"); } catch (err) { toast(fbErr(err), "err"); }
+}
+async function guardarAreas(e, areas) {
+  try { await updateDoc(doc(db, "empresas", e.id), { areas, actualizadoEn: serverTimestamp() }); } catch (err) { toast(fbErr(err), "err"); }
+}
+
+function drawEquipo(e, m, B) {
+  const areas = areasDe(e);
+  const grupos = new Map();
+  const ordenRol = ["encargado", "supervisor", "colaborador"];
+  m.slice().sort((a, b) => ordenRol.indexOf(rolDe(a)) - ordenRol.indexOf(rolDe(b)) || nombreDe(a).localeCompare(nombreDe(b), "es"))
+    .forEach(c => { const k = c.area || ""; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(c); });
+  const orden = [...grupos.keys()].sort((a, b) => (a === "") - (b === "") || a.localeCompare(b, "es"));
+  const n = r => m.filter(c => rolDe(c) === r).length, pend = m.filter(c => c.debeCambiarPassword).length;
+  B.innerHTML = `<div class="mini"><div><small>Encargados</small><b style="color:${n("encargado") ? "inherit" : "var(--red)"}">${n("encargado")}</b></div><div><small>Supervisores</small><b>${n("supervisor")}</b></div><div><small>Colaboradores</small><b>${n("colaborador")}</b></div></div>
+    <div class="card"><h3>🗂 Áreas</h3><div class="chips" id="arChips">${areas.map(a => `<span class="chip area">${esc(a)} <small class="muted">${m.filter(c => c.area === a).length}</small><button data-ardel="${esc(a)}" aria-label="Quitar área ${esc(a)}" title="Quitar área">×</button></span>`).join("") || '<span class="muted small">Sin áreas. El Encargado también puede crearlas desde la tienda.</span>'}</div>
+      <div class="row" style="margin-top:10px"><input id="arNew" class="inp" placeholder="Nueva área" maxlength="40" style="flex:1 1 160px"><button class="btn ghost" id="arAdd">＋ Agregar</button></div></div>
+    <div class="card"><h3>👥 Equipo <small>${m.length} persona(s)${pend ? ` · ⏳ ${pend} aún no entra(n)` : ""}</small></h3>
+      <div class="row" style="margin-bottom:6px"><button class="btn" id="daNew">＋ Dar acceso a una persona</button></div>
+      ${orden.map(k => `<p class="fsec">${k ? esc(k) : "Sin área"} <span class="muted">${grupos.get(k).length}</span></p><div class="list">${grupos.get(k).map(c => `<div class="li miembro">
+          <div class="who" style="flex:1;min-width:0;cursor:pointer" data-cli="${esc(c.id)}">${avatar(nombreDe(c))}<div class="wt"><b>${esc(nombreDe(c))}</b><small>${esc(c.email || "")}</small>${c.debeCambiarPassword ? '<small style="color:var(--amber);font-weight:700">⏳ aún no entra</small>' : ""}</div></div>
+          <select data-rol="${esc(c.id)}" aria-label="Rol">${optRoles(rolDe(c))}</select>
+          <select data-area="${esc(c.id)}" aria-label="Área">${optAreas(e, c.area || "")}</select>
+          <button class="icon-btn" data-rst="${esc(c.id)}" title="Enviar correo para crear contraseña" aria-label="Enviar correo de acceso">✉</button>
+          <button class="icon-btn" data-unl="${esc(c.id)}" title="Quitar de la empresa" aria-label="Quitar">✕</button></div>`).join("")}</div>`).join("") || '<div class="empty">Sin personas con acceso. Da el primer acceso al Encargado.</div>'}
+    </div>
+    <div class="card"><h3>🔗 Vincular cliente existente</h3><div class="row"><label class="fld" style="margin:0;flex:2 1 220px"><span>Correo</span><input type="email" id="addEm" list="${emailsList()}" placeholder="persona@empresa.com" autocomplete="off"></label>
+      <label class="fld" style="margin:0;flex:1 1 140px"><span>Rol</span><select id="addRol">${optRoles("colaborador")}</select></label>
+      <label class="fld" style="margin:0;flex:1 1 140px"><span>Área</span><select id="addArea">${optAreas(e, "")}</select></label><button class="btn" id="addGo">Vincular</button></div>
+      <p class="small muted" style="margin:10px 0 0">Para personas que ya tienen cuenta en la tienda. Conservan su contraseña.</p></div>
+    <details class="card roles-info"><summary>¿Qué puede hacer cada rol?</summary><table class="tbl"><thead><tr><th></th><th>⭐ Encargado</th><th>🧭 Supervisor</th><th>👤 Colaborador</th></tr></thead><tbody>
+      <tr><td>Comprar con precios y condiciones de la empresa</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Ver “Mis precios” y pedir cotizaciones</td><td>✓</td><td>✓</td><td>✓</td></tr>
+      <tr><td>Ver consignación y pedir reposición</td><td>✓</td><td>✓</td><td>—</td></tr>
+      <tr><td>Ver al equipo</td><td>✓</td><td>✓</td><td>—</td></tr>
+      <tr><td>Dar accesos, asignar roles y áreas</td><td>✓</td><td>—</td><td>—</td></tr></tbody></table></details>`;
+  $$("[data-rol]", B).forEach(s => s.onchange = () => { s.blur(); cambiarRol(cliById(s.dataset.rol), s.value); });
+  $$("[data-area]", B).forEach(s => s.onchange = () => { s.blur(); cambiarArea(cliById(s.dataset.area), s.value); });
+  $$("[data-rst]", B).forEach(b => b.onclick = () => reenviarAcceso(cliById(b.dataset.rst)));
+  $$("[data-unl]", B).forEach(b => b.onclick = () => desvincular(b.dataset.unl));
+  $$("[data-ardel]", B).forEach(b => b.onclick = async () => {
+    const a = b.dataset.ardel, en = m.filter(c => c.area === a);
+    if (en.length && !await ask({ title: "Quitar área", sub: `${en.length} persona(s) de “${a}” quedarán sin área.`, ok: "Quitar", danger: true })) return;
+    await guardarAreas(e, areas.filter(x => x !== a));
+    if (en.length) await enLotes(en.map(c => b2 => b2.update(doc(db, "clientes", c.id), { area: "" })));
+  });
+  const addArea = () => { const a = $("#arNew").value.trim().replace(/\s+/g, " "); if (!a) return; if (areas.some(x => x.toLowerCase() === a.toLowerCase())) { toast("Esa área ya existe", "err"); return; } guardarAreas(e, [...areas, a]); };
+  $("#arAdd").onclick = addArea; $("#arNew").onkeydown = ev => { if (ev.key === "Enter") addArea(); };
+  $("#daNew").onclick = () => darAcceso(e);
+  $("#addGo").onclick = () => {
+    const c = findByEmail($("#addEm").value); if (!c) { toast("No hay ningún cliente con ese correo. Usa “Dar acceso a una persona”.", "err", 4500); return; }
+    if (c.empresaId === e.id) { toast("Ya pertenece a esta empresa", "err"); return; }
+    if (c.empresaId && empById(c.empresaId)) { toast(`Ya pertenece a ${empNombre(empById(c.empresaId))}. Quítalo primero.`, "err"); return; }
+    vincular(c.id, e.id, $("#addRol").value, $("#addArea").value);
+  };
+  bindOpeners(B);
 }
 
 /* ═════════ EMPRESAS ═════════ */
@@ -832,88 +1110,46 @@ function rEmpresas() {
   }).sort((a, b) => (b.activo !== false) - (a.activo !== false) || empNombre(a).localeCompare(empNombre(b), "es"));
   const conEquipo = new Set(S.clientes.filter(c => c.empresaId).map(c => c.empresaId));
   $("#eKpis").innerHTML = `<div><small>Empresas</small><b>${S.empresas.length}</b></div><div><small>Activas</small><b>${S.empresas.filter(e => e.activo !== false).length}</b></div>
-    <div><small>Cuentas B2B</small><b>${S.clientes.filter(c => c.empresaId).length}</b></div><div><small>Sin dueño</small><b>${S.empresas.filter(e => !ownerDe(e)).length}</b></div>
+    <div><small>Cuentas B2B</small><b>${S.clientes.filter(c => c.empresaId).length}</b></div><div><small>Sin encargado</small><b>${S.empresas.filter(e => !ownerDe(e)).length}</b></div><div><small>Accesos sin estrenar</small><b>${S.clientes.filter(c => c.empresaId && c.debeCambiarPassword).length}</b></div>
     <div><small>Piezas en consignación</small><b>${S.consig.reduce((s, k) => s + num(k.cantidad), 0).toLocaleString("es-MX")}</b></div>`;
   $("#eGrid").innerHTML = loading("empresas") || (l.length ? l.map(e => {
     const m = miembros(e.id), o = ownerDe(e), k = consigDe(e.id), uids = new Set(m.map(x => x.id));
     const cot = S.cots.filter(x => uids.has(x.uid)).reduce((s, x) => s + num(x.total), 0);
     const d = o ? descOf(o) : 0;
     return `<button class="ecard ${e.activo === false ? "off" : ""}" data-emp="${esc(e.id)}">
-      <div class="ehd">${avatar(empNombre(e))}<div style="min-width:0;flex:1"><b>${esc(empNombre(e))}</b><small>${o ? `👑 ${esc(nombreDe(o))}` : '<span style="color:var(--red)">⚠ Sin dueño asignado</span>'}</small></div>${e.activo === false ? '<span class="chip r">Inactiva</span>' : '<span class="chip g">Activa</span>'}</div>
+      <div class="ehd">${avatar(empNombre(e))}<div style="min-width:0;flex:1"><b>${esc(empNombre(e))}</b><small>${o ? `⭐ ${esc(nombreDe(o))}${o.debeCambiarPassword ? " · ⏳" : ""}` : '<span style="color:var(--red)">⚠ Sin encargado asignado</span>'}</small></div>${e.activo === false ? '<span class="chip r">Inactiva</span>' : '<span class="chip g">Activa</span>'}</div>
       <div class="estats"><div><small>Equipo</small><b>${m.length}</b></div><div><small>Consignación</small><b>${k.reduce((s, x) => s + num(x.cantidad), 0).toLocaleString("es-MX")}</b></div><div><small>Cotizado</small><b>${moneyK(cot)}</b></div></div>
       <div class="chips" style="margin-top:10px">${d ? `<span class="chip a">🏷️ ${d}%</span>` : ""}${o?.credito_aprobado === true ? `<span class="chip g">💳 ${esc(plazoTxt(o))}</span>` : ""}<span class="chip">Desde ${fdate(e.creadoEn)}</span></div>
     </button>`;
-  }).join("") : `<div class="empty card">${S.empresas.length ? "Ninguna empresa coincide." : "Aún no hay empresas. Crea la primera con “＋ Nueva empresa”."}</div>`);
+  }).join("") : `<div class="empty card">${S.empresas.length ? "Ninguna empresa coincide." : "Aún no hay empresas. Da de alta la primera con “＋ Nueva empresa”."}</div>`);
   bindOpeners($("#eGrid"));
 }
 
 const emailsList = () => { let dl = $("#dlEmails"); if (!dl) { dl = document.createElement("datalist"); dl.id = "dlEmails"; document.body.appendChild(dl); } dl.innerHTML = S.clientes.filter(c => c.email).map(c => `<option value="${esc(c.email)}">${esc(nombreDe(c))}</option>`).join(""); return "dlEmails"; };
 const findByEmail = em => S.clientes.find(c => String(c.email || "").trim().toLowerCase() === String(em || "").trim().toLowerCase());
 
-async function nuevaEmpresa(emailPre = "") {
-  const v = await ask({
-    title: "🏢 Nueva empresa afiliada", sub: "El dueño debe tener cuenta en la tienda. Escribe su correo y elige de la lista.", ok: "Crear empresa",
-    fields: [
-      { id: "nombre", label: "Nombre de la empresa", placeholder: "Aceros del Valle S.A. de C.V." },
-      { id: "email", label: "Correo del dueño", type: "email", value: emailPre, list: emailsList(), placeholder: "dueño@empresa.com" },
-      { id: "desc", label: "Descuento B2B % (opcional)", type: "number", min: 0, max: 100, step: "0.5", placeholder: "0" },
-      { id: "cred", label: "Días de crédito (opcional)", type: "number", min: 0, placeholder: "0 = contado" }
-    ],
-    validate: v => {
-      if (!v.nombre) return "Escribe el nombre de la empresa";
-      const c = findByEmail(v.email); if (!c) return "No hay ningún cliente con ese correo";
-      if (c.empresaId && empById(c.empresaId)) return `Ese cliente ya pertenece a ${empNombre(empById(c.empresaId))}`;
-      if (S.empresas.some(e => empNombre(e).trim().toLowerCase() === v.nombre.toLowerCase())) return "Ya existe una empresa con ese nombre";
-    }
-  });
-  if (!v) return;
-  const c = findByEmail(v.email);
-  try {
-    const ref = await addDoc(collection(db, "empresas"), { nombreEmpresa: v.nombre, ownerUid: c.id, activo: true, creadoEn: serverTimestamp() });
-    const data = { empresaId: ref.id, rolEmpresa: "owner" };
-    if (!c.empresa) data.empresa = v.nombre;
-    if (num(v.desc) > 0) { data.tiene_descuento = true; data.porcentaje_descuento = Math.min(100, num(v.desc)); }
-    if (parseInt(v.cred, 10) > 0) { data.credito_aprobado = true; data.credito_duracion = parseInt(v.cred, 10); data.credito_tipo_duracion = "dias"; }
-    await updateDoc(doc(db, "clientes", c.id), data);
-    toast(`Empresa "${v.nombre}" creada ✓`, "ok");
-    openEmpresa(ref.id);
-  } catch (e) { toast(fbErr(e), "err"); }
-}
-
 function drawEmpresa(D) {
   const e = empById(D.id);
   if (!e) { $("#dBody").innerHTML = `<div class="empty">Esta empresa ya no existe.</div>`; return; }
-  const m = miembros(e.id).sort((a, b) => (b.rolEmpresa === "owner") - (a.rolEmpresa === "owner") || nombreDe(a).localeCompare(nombreDe(b), "es"));
+  const m = miembros(e.id).sort((a, b) => (rolDe(b) === "encargado") - (rolDe(a) === "encargado") || nombreDe(a).localeCompare(nombreDe(b), "es"));
   const k = consigDe(e.id).sort((a, b) => String(a.producto || "").localeCompare(String(b.producto || ""), "es"));
   const uids = new Set(m.map(x => x.id)), cots = S.cots.filter(x => uids.has(x.uid));
   const o = ownerDe(e);
   setDav(empNombre(e), "12px");
   $("#dTitle").textContent = empNombre(e);
-  $("#dSub").textContent = `${o ? "Dueño: " + nombreDe(o) : "Sin dueño"} · ${m.length} cuenta(s)${e.activo === false ? " · INACTIVA" : ""}`;
+  $("#dSub").textContent = `${o ? "Encargado: " + nombreDe(o) : "Sin encargado"} · ${m.length} persona(s)${areasDe(e).length ? ` · ${areasDe(e).length} área(s)` : ""}${e.activo === false ? " · INACTIVA" : ""}`;
   tabs([["equipo", `Equipo (${m.length})`], ["consig", `Consignación (${k.length})`], ["precios", `Precios${Array.isArray(P.empLista[e.id]) ? ` (${P.empLista[e.id].length})` : ""}`], ["cond", "Condiciones"], ["cots", `Cotizaciones (${cots.length})`], ["ajustes", "Ajustes"]], D.tab);
   const B = $("#dBody");
   if (D.tab === "precios") drawPreciosEmpresa(e, B);
 
-  if (D.tab === "equipo") {
-    B.innerHTML = `<div class="card"><h3>👥 Equipo <small>${m.length} cuenta(s)</small></h3><div class="list">${m.map(c => `<div class="li"><div class="who" style="flex:1;cursor:pointer" data-cli="${esc(c.id)}">${avatar(nombreDe(c))}<div class="wt"><b>${esc(nombreDe(c))}</b><small>${esc(c.email || "")}${c.puesto ? " · " + esc(c.puesto) : ""}</small></div></div>
-        ${c.rolEmpresa === "owner" ? '<span class="chip a">👑 Dueño</span>' : `<button class="btn ghost sm" data-own="${esc(c.id)}">👑</button>`}<button class="icon-btn" data-unl="${esc(c.id)}" title="Quitar de la empresa" aria-label="Quitar">✕</button></div>`).join("") || '<div class="empty">Sin cuentas vinculadas.</div>'}</div></div>
-      <div class="card"><h3>＋ Agregar cliente existente</h3><div class="row"><label class="fld" style="margin:0"><span>Correo</span><input type="email" id="addEm" list="${emailsList()}" placeholder="empleado@empresa.com" autocomplete="off"></label>
-        <label class="fld" style="margin:0;flex:0 0 140px"><span>Rol</span><select id="addRol"><option value="empleado">Empleado</option><option value="owner">Dueño</option></select></label><button class="btn" id="addGo">Agregar</button></div>
-        <p class="small muted" style="margin:10px 0 0">El dueño también puede dar de alta empleados nuevos desde su cuenta en la tienda.</p></div>`;
-    $$("[data-own]", B).forEach(b => b.onclick = () => hacerDueno(e.id, b.dataset.own));
-    $$("[data-unl]", B).forEach(b => b.onclick = () => desvincular(b.dataset.unl));
-    $("#addGo").onclick = () => {
-      const c = findByEmail($("#addEm").value); if (!c) { toast("No hay ningún cliente con ese correo", "err"); return; }
-      if (c.empresaId === e.id) { toast("Ya pertenece a esta empresa", "err"); return; }
-      if (c.empresaId && empById(c.empresaId)) { toast(`Ya pertenece a ${empNombre(empById(c.empresaId))}. Quítalo primero.`, "err"); return; }
-      vincular(c.id, e.id, $("#addRol").value);
-    };
-    bindOpeners(B);
-  }
+  if (D.tab === "equipo") drawEquipo(e, m, B);
 
   if (D.tab === "consig") {
     const pz = k.reduce((s, x) => s + num(x.cantidad), 0);
-    B.innerHTML = `<div class="card"><h3>＋ Agregar a consignación</h3>
+    B.innerHTML = `<div class="card"><h3>📥 Carga masiva</h3>
+        <p class="small muted" style="margin:0 0 10px">Sube un Excel con CÓDIGO, DESCRIPCIÓN y CANTIDAD para dar de alta o actualizar toda la consignación de un jalón.</p>
+        <button class="btn" id="kImp">📥 Importar Excel</button></div>
+      <div class="card"><h3>＋ Agregar a consignación</h3>
         <div class="sug"><label class="fld"><span>Producto (busca en tu catálogo o escribe uno nuevo)</span><input id="kP" placeholder="Nombre o SKU" autocomplete="off"></label><div class="sug-list hidden" id="kSug"></div></div>
         <div class="row"><label class="fld" style="margin:0"><span>SKU</span><input id="kSku" placeholder="Opcional" autocomplete="off"></label><label class="fld" style="margin:0;flex:0 0 110px"><span>Cantidad</span><input id="kN" type="number" min="1" value="1" inputmode="numeric"></label><button class="btn" id="kAdd">Agregar</button></div>
         <p class="small muted" style="margin:10px 0 0">Si el SKU ya está en la consignación, se suma a la cantidad existente.</p></div>
@@ -955,20 +1191,22 @@ function drawEmpresa(D) {
     });
     $("#kCsvE") && ($("#kCsvE").onclick = () => download(`consignacion_${empNombre(e).replace(/[^\w-]+/g, "_")}_${today()}.csv`, [["Producto", "SKU", "Cantidad"], ...k.map(x => [x.producto, x.sku, num(x.cantidad)])]));
     $("#kPrint") && ($("#kPrint").onclick = () => imprimirConsig(e, k));
+    $("#kImp").onclick = () => importarConsigExcel(e.id);
   }
 
   if (D.tab === "cond") {
     const ds = [...new Set(m.map(c => descOf(c)))], cs = [...new Set(m.map(c => c.credito_aprobado === true ? plazoTxt(c) : "contado"))];
-    const ref = o || m[0] || {};
+    const ref = e.condiciones || o || m[0] || {};
     B.innerHTML = `<div class="card"><h3>💼 Condiciones para todo el equipo</h3>
       <p class="small muted" style="margin:0 0 6px">Hoy: descuento ${ds.map(d => d ? d + "%" : "ninguno").join(" / ")} · crédito ${cs.join(" / ")}${ds.length > 1 || cs.length > 1 ? ' <span class="chip a">no homogéneo</span>' : ""}</p>
       <div class="cond"><label class="switch"><input type="checkbox" id="gDesc" ${descOf(ref) ? "checked" : ""}><i></i></label><div class="ct"><b>Descuento B2B</b><small>Para todas las cuentas de la empresa</small></div>
         <div class="ci"><input type="number" id="gPct" min="1" max="100" step="0.5" value="${ref.porcentaje_descuento || ""}" placeholder="%" inputmode="decimal"><span>%</span></div></div>
       <div class="cond"><label class="switch"><input type="checkbox" id="gCred" ${ref.credito_aprobado === true ? "checked" : ""}><i></i></label><div class="ct"><b>Línea de crédito</b><small>Plazo para pagar sus pedidos</small></div>
         <div class="ci"><input type="number" id="gDur" min="1" value="${ref.credito_duracion || ""}" placeholder="30" inputmode="numeric"><select id="gTipo"><option value="dias" ${ref.credito_tipo_duracion !== "meses" ? "selected" : ""}>Días</option><option value="meses" ${ref.credito_tipo_duracion === "meses" ? "selected" : ""}>Meses</option></select></div></div>
-      <button class="btn block" id="gSave" style="margin-top:14px" ${m.length ? "" : "disabled"}>Aplicar a ${m.length} cuenta(s)</button></div>
-      <div class="card"><h3>Detalle por cuenta</h3><div class="list">${m.map(c => `<div class="li click" data-cli="${esc(c.id)}"><div class="lt"><b>${esc(nombreDe(c))}</b><small>${c.rolEmpresa === "owner" ? "Dueño" : "Empleado"}</small></div><div class="chips">${descOf(c) ? `<span class="chip a">${descOf(c)}%</span>` : '<span class="chip">sin desc.</span>'}${c.credito_aprobado === true ? `<span class="chip g">${esc(plazoTxt(c))}</span>` : '<span class="chip">contado</span>'}</div></div>`).join("")}</div></div>`;
-    $("#gSave").onclick = () => saveCond(m.map(c => c.id), { desc: $("#gDesc").checked, pct: $("#gPct").value, cred: $("#gCred").checked, dur: $("#gDur").value, tipo: $("#gTipo").value }, $("#gSave"));
+      <button class="btn block" id="gSave" style="margin-top:14px">Guardar para toda la empresa${m.length ? ` (${m.length} cuenta(s))` : ""}</button>
+      <p class="small muted" style="margin:8px 0 0">Se guardan en la empresa: los accesos nuevos que cree el Encargado las reciben automáticamente.</p></div>
+      <div class="card"><h3>Detalle por cuenta</h3><div class="list">${m.map(c => `<div class="li click" data-cli="${esc(c.id)}"><div class="lt"><b>${esc(nombreDe(c))}</b><small>${rolLbl(c)}${c.area ? " · " + esc(c.area) : ""}</small></div><div class="chips">${descOf(c) ? `<span class="chip a">${descOf(c)}%</span>` : '<span class="chip">sin desc.</span>'}${c.credito_aprobado === true ? `<span class="chip g">${esc(plazoTxt(c))}</span>` : '<span class="chip">contado</span>'}</div></div>`).join("")}</div></div>`;
+    $("#gSave").onclick = () => saveCond(m.map(c => c.id), { desc: $("#gDesc").checked, pct: $("#gPct").value, cred: $("#gCred").checked, dur: $("#gDur").value, tipo: $("#gTipo").value }, $("#gSave"), e.id);
     bindOpeners(B);
   }
 
@@ -1053,6 +1291,7 @@ function rConsig() {
   }).join("")}</tbody>` : `<tbody><tr><td><div class="empty">Sin registros de consignación.</div></td></tr></tbody>`;
   $$("#kTbl [data-emp]").forEach(r => r.onclick = () => empById(r.dataset.emp) ? openEmpresa(r.dataset.emp, "consig") : toast("La empresa ya no existe", "err"));
 }
+$("#kImpG").onclick = () => importarConsigExcel($("#kE").value);
 $("#kCsv").onclick = () => download(`consignacion_orbiscorp_${today()}.csv`, [["Empresa", "Producto", "SKU", "Cantidad", "Actualizado"], ...consigFiltrada().map(x => [empNombre(empById(x.empresaId)), x.producto, x.sku, num(x.cantidad), fdate(x.updatedAt)])]);
 
 /* ═════════ COTIZACIONES ═════════ */
@@ -1415,6 +1654,123 @@ async function importarExcel(eidPref) {
   if (S.drawer) S.drawer._rendered = false;
   render();
 }
+
+/* ── importar consignación desde Excel: una hoja por empresa (CÓDIGO | DESCRIPCIÓN | CANTIDAD) ── */
+const RX_COD  = /^(codigo|clave|sku|cod\.?|no\.? de parte|numero de parte|modelo|n[uú]m\.? de parte)$/;
+const RX_DESC = /descrip|producto|nombre|articulo|concepto/;
+const RX_CANT = /^(cantidad|cant\.?|piezas|pzas?\.?|existencia|qty|unidades|stock|en resguardo|resguardo|inventario)\b/;
+function leerHojaConsig(XLSX, ws, nombre) {
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: true, blankrows: false });
+  let h = -1, cc = -1, cd = -1, cq = -1, titulo = "";
+  for (let i = 0; i < Math.min(rows.length, 40); i++) {
+    const r = rows[i].map(normTxt);
+    const jc = r.findIndex(v => RX_COD.test(v)), jd = r.findIndex(v => RX_DESC.test(v));
+    if (jc >= 0 || (jd >= 0 && r.some(v => RX_CANT.test(v)))) { h = i; cc = jc; cd = jd; cq = r.findIndex(v => RX_CANT.test(v)); break; }
+    const t = rows[i].find(v => String(v).trim()); if (t && !titulo) titulo = String(t).trim();
+  }
+  if (h < 0) return { nombre, titulo, items: [], error: "sin columna CÓDIGO o DESCRIPCIÓN" };
+  const porClave = new Map();
+  for (let i = h + 1; i < rows.length; i++) {
+    const cod = cc >= 0 ? String(rows[i][cc] ?? "").trim() : "";
+    const desc = cd >= 0 ? String(rows[i][cd] ?? "").trim() : "";
+    if (!cod && !desc) continue;
+    if (!cod && /^(sub)?total/i.test(desc)) continue;                 // renglones de totales
+    let q = null;
+    if (cq >= 0) {
+      const raw = rows[i][cq];
+      if (raw === "" || raw == null) continue;                          // sin cantidad: se ignora el renglón
+      q = Math.floor(num(String(raw).replace(/[^\d.-]/g, "")));
+      if (!Number.isFinite(q) || q < 0) continue;
+    }
+    const k = cod ? "C:" + normCod(cod) : "D:" + normTxt(desc);
+    const prev = porClave.get(k);
+    if (prev) { if (q != null) prev.q = (prev.q || 0) + q; prev.rep++; }   // código repetido en la hoja: se suman
+    else porClave.set(k, { k, codigo: cod, desc, q, rep: 1 });
+  }
+  return { nombre, titulo: titulo.replace(/^(lista de productos|consignaci[oó]n|inventario( en)?( consignaci[oó]n)?)\s*/i, ""), items: [...porClave.values()], sinCant: cq < 0 };
+}
+const claveConsig = x => x.sku ? "C:" + normCod(x.sku) : "D:" + normTxt(x.producto);
+
+async function importarConsigExcel(eidPref) {
+  if (!S.empresas.length) { toast("Primero crea las empresas en la sección Empresas", "err"); return; }
+  let hojas = [];
+  const modos = {
+    sumar: "Sumar las piezas a lo que ya tiene",
+    actualizar: "Actualizar cantidades (las del Excel mandan; lo demás se queda)",
+    reemplazar: "Reemplazar todo (lo que no venga en el Excel se elimina)"
+  };
+  const prom = ask({ title: "📥 Importar consignación desde Excel", sub: "Una hoja por empresa con CÓDIGO, DESCRIPCIÓN y CANTIDAD. Si un código ya está en su consignación, se actualiza en lugar de duplicarse.", ok: "Importar", wide: true,
+    html: `<label class="fld"><span>Archivo de Excel (.xlsx, .xls o .csv)</span><input type="file" id="cxFile" accept=".xlsx,.xls,.csv"></label>
+      <div id="cxPrev" class="small muted">Elige el archivo para ver qué empresa corresponde a cada hoja. <button type="button" class="btn ghost sm" id="cxPlant" style="margin-left:6px">⬇ Plantilla</button></div>
+      <div class="row" style="margin-top:12px;align-items:flex-end">
+        <label class="fld" style="margin:0;flex:1 1 260px"><span>Si la empresa ya tiene productos en consignación</span><select id="cxModo">${Object.entries(modos).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
+        <label class="fld" style="margin:0;flex:0 0 170px;display:none" id="cxDefW"><span>Piezas si no hay columna CANTIDAD</span><input id="cxDef" type="number" min="0" value="1" inputmode="numeric"></label>
+      </div>`,
+    validate: () => !hojas.length ? "Elige un archivo" : !$$("#cxPrev select").some(s => s.value) ? "Asigna al menos una hoja a una empresa" : null });
+  $("#cxPlant").onclick = () => download("plantilla_consignacion.csv", [["CÓDIGO", "DESCRIPCIÓN", "CANTIDAD"], ["MSA10124238", "Barbiquejo V-Gard 4 puntos", 20], ["S701C", "Mica de repuesto Uvex Stealth gris", 50]]);
+  $("#cxFile").onchange = async ev => {
+    const f = ev.target.files[0]; if (!f) return;
+    $("#cxPrev").innerHTML = '<span class="spin"></span> Leyendo…';
+    try {
+      const [XLSX, cat] = await Promise.all([cargarXLSX(), catalogo()]);
+      const wb = XLSX.read(await f.arrayBuffer(), { type: "array" });
+      hojas = wb.SheetNames.map(n => leerHojaConsig(XLSX, wb.Sheets[n], n)).filter(h => h.items.length || h.error);
+      hojas.forEach(h => { h.items.forEach(it => { it.p = it.codigo ? cat.byCod.get(normCod(it.codigo)) || null : null; }); h.enCat = h.items.filter(it => it.p).length; h.pz = h.items.reduce((s, it) => s + (it.q || 0), 0); });
+      $("#cxDefW").style.display = hojas.some(h => h.sinCant) ? "" : "none";
+      const una = hojas.filter(h => h.items.length).length === 1;
+      const opt = h => `<option value="">— No importar —</option>` + S.empresas.slice().sort((a, b) => empNombre(a).localeCompare(empNombre(b), "es")).map(e => `<option value="${esc(e.id)}" ${(una && eidPref ? eidPref : empresaParaHoja(h)) === e.id ? "selected" : ""}>${esc(empNombre(e))}</option>`).join("");
+      const muestra = h => h.items.slice(0, 3).map(it => `${esc(it.codigo || "s/código")} · ${esc((it.p?.nombre || it.desc || "").slice(0, 38))}${it.q != null ? ` · <b>${it.q}</b>` : ""}`).join("<br>");
+      $("#cxPrev").innerHTML = hojas.length ? `<div class="tbl-wrap" style="max-height:46vh;overflow:auto;border:1px solid var(--border);border-radius:8px"><table class="tbl"><thead><tr><th>Hoja</th><th class="num">Productos</th><th class="num">Piezas</th><th>Empresa</th></tr></thead><tbody>${hojas.map((h, i) => `<tr>
+          <td><b>${esc(h.nombre)}</b>${h.titulo ? `<br><small class="muted">${esc(h.titulo)}</small>` : ""}${h.error ? `<br><span class="chip r">${esc(h.error)}</span>` : h.sinCant ? '<br><span class="chip a">sin columna CANTIDAD</span>' : ""}${h.items.length ? `<br><small class="muted">${muestra(h)}${h.items.length > 3 ? "<br>…" : ""}</small>` : ""}</td>
+          <td class="num">${h.items.length}${h.items.length ? `<br><small class="muted">${h.enCat} en catálogo</small>` : ""}</td>
+          <td class="num">${h.sinCant ? "—" : h.pz.toLocaleString("es-MX")}</td>
+          <td>${h.items.length ? `<select data-cxh="${i}" style="width:100%;min-width:160px;max-width:230px">${opt(h)}</select>` : ""}</td></tr>`).join("")}</tbody></table></div>
+        <p class="small muted" style="margin:8px 0 0">Los códigos se comparan sin importar mayúsculas, espacios ni guiones. Si un código se repite en la hoja, sus piezas se suman. Los productos que no están en el catálogo también se cargan, con la descripción del Excel.</p>`
+        : `<span class="chip r">No encontré hojas con la columna CÓDIGO o DESCRIPCIÓN</span>`;
+    } catch (e) { $("#cxPrev").innerHTML = `<span class="chip r">${esc(e.message || "No se pudo leer el archivo")}</span>`; hojas = []; }
+  };
+  if (!await prom) return;
+  const modo = $("#cxModo").value, def = Math.max(0, Math.floor(num($("#cxDef").value)));
+  const plan = $$("#cxPrev select[data-cxh]").map(s => ({ h: hojas[+s.dataset.cxh], eid: s.value })).filter(x => x.eid);
+  if (modo === "reemplazar") {
+    const borrar = plan.reduce((s, { h, eid }) => { const nuevos = new Set(h.items.map(it => it.k)); return s + S.consig.filter(x => x.empresaId === eid && !nuevos.has(claveConsig(x))).length; }, 0);
+    if (borrar && !await ask({ title: "Reemplazar consignación", sub: `${borrar} producto(s) que hoy están en consignación no vienen en el Excel y se eliminarán.`, ok: "Reemplazar", danger: true })) return;
+  }
+  const resumen = [];
+  toast("Importando…", "", 1500);
+  try {
+    for (const { h, eid } of plan) {
+      const actuales = new Map(S.consig.filter(x => x.empresaId === eid).map(x => [claveConsig(x), x]));
+      const ops = []; let nuevos = 0, act = 0, elim = 0, pz = 0;
+      h.items.forEach(it => {
+        const q = it.q ?? def; pz += q;
+        const ex = actuales.get(it.k);
+        if (ex) {
+          const cantidad = modo === "sumar" ? num(ex.cantidad) + q : q;
+          act++; ops.push(b => b.update(doc(db, "productos_consignacion", ex.id), { cantidad, updatedAt: serverTimestamp() }));
+        } else {
+          nuevos++;
+          ops.push(b => b.set(doc(collection(db, "productos_consignacion")), {
+            empresaId: eid, producto: (it.p?.nombre || it.desc || it.codigo).slice(0, 200), sku: it.p?.sku || it.codigo || "",
+            cantidad: q, origen: "excel", updatedAt: serverTimestamp() }));
+        }
+      });
+      if (modo === "reemplazar") {
+        const vienen = new Set(h.items.map(it => it.k));
+        actuales.forEach((x, k) => { if (!vienen.has(k)) { elim++; ops.push(b => b.delete(doc(db, "productos_consignacion", x.id))); } });
+      }
+      await enLotes(ops);
+      resumen.push([empNombre(empById(eid)), nuevos, act, elim, pz]);
+    }
+  } catch (e) { toast(fbErr(e), "err", 6000); }
+  if (!resumen.length) return;
+  await ask({ title: "✓ Consignación actualizada", sub: modos[modo] + ".", ok: "Listo", wide: true,
+    html: `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Empresa</th><th class="num">Nuevos</th><th class="num">Actualizados</th><th class="num">Eliminados</th><th class="num">Piezas del Excel</th></tr></thead><tbody>${resumen.map(r => `<tr><td><b>${esc(r[0])}</b></td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td class="num">${r[3] || "—"}</td><td class="num">${r[4].toLocaleString("es-MX")}</td></tr>`).join("")}</tbody></table></div>
+      <p class="small muted" style="margin:10px 0 0">La empresa ya lo ve en su portal, pestaña Consignación. Imprime el reporte desde la ficha de la empresa para recabar la firma de conformidad.</p>` });
+  if (S.drawer) S.drawer._rendered = false;
+  render();
+}
+
 document.addEventListener("click", e => { if (e.target.id === "xNoEnc") download(`codigos_no_encontrados_${today()}.csv`, [["Empresa", "Hoja", "Código", "Descripción en Excel"], ...(window.__noEnc || [])]); });
 
 /* ── accesos individuales ── */
